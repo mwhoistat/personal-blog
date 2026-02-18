@@ -33,7 +33,9 @@ export default function LoginPage() {
             setError(err)
             setLoading(false)
         } else {
-            router.push('/admin')
+            // Use full page reload instead of client-side navigation
+            // to ensure auth cookies are properly sent to middleware
+            window.location.href = '/admin'
         }
     }
 
