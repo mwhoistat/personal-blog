@@ -20,11 +20,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
     useEffect(() => {
-        if (!loading && (!user || user.role !== 'admin')) {
-            // For demo purposes, allow access. In production, redirect.
-            // router.push('/login')
+        if (!loading) {
+            if (!user) {
+                router.push('/login')
+            } else if (user.role !== 'admin') {
+                // If user is logged in but not admin, redirect to home
+                router.push('/')
+            }
         }
     }, [user, loading, router])
+
+    // Prevent rendering while loading or if unauthorized
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="animate-spin" style={{
+                    width: '32px', height: '32px',
+                    border: '3px solid var(--color-border)',
+                    borderTopColor: 'var(--color-accent)',
+                    borderRadius: '50%'
+                }} />
+            </div>
+        )
+    }
+
+    // If finished loading and not admin, return null (useEffect will redirect)
+    if (!user || user.role !== 'admin') {
+        return null
+    }
 
     return (
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>

@@ -20,6 +20,15 @@ export default function RegisterPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
+
+        // Validation for Admin Email
+        // Only allow registration if email matches the configured admin email
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+        if (adminEmail && email !== adminEmail) {
+            setError('Pendaftaran ditutup. Hanya email administrator yang diizinkan mendaftar.')
+            return
+        }
+
         if (password.length < 6) {
             setError('Password minimal 6 karakter.')
             return
@@ -61,8 +70,8 @@ export default function RegisterPage() {
                     }}>
                         <UserPlus size={24} style={{ color: 'white' }} />
                     </div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.375rem' }}>Buat Akun</h1>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Daftar untuk mulai berkomentar</p>
+                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.375rem' }}>Buat Akun Admin</h1>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Khusus untuk pemilik website</p>
                 </div>
 
                 {error && (
@@ -130,7 +139,7 @@ export default function RegisterPage() {
                         color: 'white', background: loading ? 'var(--color-text-muted)' : 'linear-gradient(135deg, var(--color-accent), #a855f7)',
                         border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
                     }}>
-                        {loading ? 'Loading...' : 'Daftar'}
+                        {loading ? 'Loading...' : 'Daftar Admin'}
                     </button>
                 </form>
 
