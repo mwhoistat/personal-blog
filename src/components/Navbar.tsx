@@ -19,6 +19,7 @@ export default function Navbar() {
         { href: '/', label: 'Beranda' },
         { href: '/articles', label: 'Artikel' },
         { href: '/projects', label: 'Proyek' },
+        { href: '/about', label: 'Tentang' },
     ]
 
     const handleSearch = (e: React.FormEvent) => {
