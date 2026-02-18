@@ -9,15 +9,6 @@ import { ArticleCardSkeleton } from '@/components/Skeleton'
 import { BookOpen } from 'lucide-react'
 import type { Article } from '@/lib/types'
 
-const demoArticles: Article[] = [
-    { id: '1', title: 'Memulai dengan Next.js 14 dan App Router', slug: 'memulai-nextjs-14', content: '# Memulai dengan Next.js 14\n\nNext.js 14 membawa banyak peningkatan...', excerpt: 'Panduan lengkap untuk memulai proyek dengan Next.js 14 menggunakan App Router.', cover_image: 'https://picsum.photos/seed/nextjs/800/400', category: 'Tutorial', tags: ['nextjs', 'react', 'webdev'], published: true, view_count: 234, author_id: '1', created_at: '2024-01-15T00:00:00Z', updated_at: '2024-01-15T00:00:00Z' },
-    { id: '2', title: 'TypeScript Best Practices', slug: 'typescript-best-practices', content: '', excerpt: 'Tips dan trik TypeScript yang meningkatkan kualitas kode.', cover_image: 'https://picsum.photos/seed/typescript/800/400', category: 'Programming', tags: ['typescript', 'javascript'], published: true, view_count: 189, author_id: '1', created_at: '2024-01-10T00:00:00Z', updated_at: '2024-01-10T00:00:00Z' },
-    { id: '3', title: 'Desain UI Modern dengan Tailwind CSS', slug: 'desain-ui-tailwind', content: '', excerpt: 'Cara membuat desain UI/UX yang beautiful dan responsive.', cover_image: 'https://picsum.photos/seed/tailwind/800/400', category: 'Design', tags: ['tailwindcss', 'ui', 'design'], published: true, view_count: 156, author_id: '1', created_at: '2024-01-05T00:00:00Z', updated_at: '2024-01-05T00:00:00Z' },
-    { id: '4', title: 'Panduan Supabase untuk Fullstack Dev', slug: 'panduan-supabase', content: '', excerpt: 'Pelajari cara menggunakan Supabase sebagai backend modern.', cover_image: 'https://picsum.photos/seed/supabase/800/400', category: 'Backend', tags: ['supabase', 'database'], published: true, view_count: 312, author_id: '1', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
-    { id: '5', title: 'React Hooks yang Wajib Dikuasai', slug: 'react-hooks-wajib', content: '', excerpt: 'Hooks penting di React yang sering digunakan dalam development.', cover_image: 'https://picsum.photos/seed/hooks/800/400', category: 'Programming', tags: ['react', 'hooks'], published: true, view_count: 245, author_id: '1', created_at: '2023-12-28T00:00:00Z', updated_at: '2023-12-28T00:00:00Z' },
-    { id: '6', title: 'Deploy Aplikasi ke Vercel', slug: 'deploy-vercel', content: '', excerpt: 'Langkah mudah deploy aplikasi Next.js ke Vercel.', cover_image: 'https://picsum.photos/seed/vercel/800/400', category: 'DevOps', tags: ['vercel', 'deploy'], published: true, view_count: 178, author_id: '1', created_at: '2023-12-20T00:00:00Z', updated_at: '2023-12-20T00:00:00Z' },
-]
-
 const categories = ['Semua', 'Tutorial', 'Programming', 'Design', 'Backend', 'DevOps']
 
 function ArticlesContent() {
@@ -34,9 +25,9 @@ function ArticlesContent() {
             const { data } = await supabase
                 .from('articles').select('*').eq('published', true)
                 .order('created_at', { ascending: false })
-            setArticles(data?.length ? data : demoArticles)
+            setArticles(data || [])
         } catch {
-            setArticles(demoArticles)
+            setArticles([])
         } finally {
             setLoading(false)
         }
@@ -114,7 +105,7 @@ function ArticlesContent() {
                 <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
                     <BookOpen size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
                     <p style={{ fontSize: '1.125rem', fontWeight: 600 }}>Tidak ada artikel ditemukan</p>
-                    <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Coba kata kunci atau kategori lain.</p>
+                    <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Belum ada artikel yang dipublish.</p>
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
