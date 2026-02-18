@@ -30,7 +30,22 @@ export async function middleware(request: NextRequest) {
     )
 
     // Refresh session
-    await supabase.auth.getUser()
+    // Refresh session
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Strict Server-Side Admin Protection
+    if (request.nextUrl.pathname.startsWith('/admin')) {
+        if (!user) {
+            return NextResponse.redirect(new URL('/login', request.url))
+        }
+
+        // Check if user email matches admin email from env
+        // Note: This relies on the env var being available to middleware
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+        if (adminEmail && user.email !== adminEmail) {
+            return NextResponse.redirect(new URL('/', request.url))
+        }
+    }
 
     return supabaseResponse
 }

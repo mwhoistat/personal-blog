@@ -49,27 +49,16 @@ create table if not exists public.projects (
   updated_at timestamptz default now()
 );
 
--- Comments table
-create table if not exists public.comments (
-  id uuid default uuid_generate_v4() primary key,
-  article_id uuid references public.articles(id) on delete cascade not null,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  content text not null,
-  created_at timestamptz default now()
-);
-
 -- Indexes
 create index if not exists idx_articles_slug on public.articles(slug);
 create index if not exists idx_articles_published on public.articles(published);
 create index if not exists idx_projects_slug on public.projects(slug);
 create index if not exists idx_projects_featured on public.projects(featured);
-create index if not exists idx_comments_article on public.comments(article_id);
 
 -- RLS Policies
 alter table public.profiles enable row level security;
 alter table public.articles enable row level security;
 alter table public.projects enable row level security;
-alter table public.comments enable row level security;
 
 -- Profiles: anyone can read, users can update own
 create policy "Profiles are viewable by everyone" on public.profiles for select using (true);
@@ -88,13 +77,7 @@ create policy "Admins can do everything with projects" on public.projects for al
   exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
 );
 
--- Comments: anyone can read, authenticated users can create, users can delete own
-create policy "Comments are viewable by everyone" on public.comments for select using (true);
-create policy "Authenticated users can create comments" on public.comments for insert with check (auth.uid() = user_id);
-create policy "Users can delete own comments" on public.comments for delete using (auth.uid() = user_id);
-create policy "Admins can delete any comment" on public.comments for delete using (
-  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-);
+
 
 -- Function to handle profile creation on signup
 create or replace function public.handle_new_user()

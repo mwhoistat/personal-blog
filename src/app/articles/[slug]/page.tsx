@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
-import CommentSection from '@/components/CommentSection'
+
 import { ArticleDetailSkeleton } from '@/components/Skeleton'
 import { formatDate } from '@/lib/utils'
 import { Calendar, Eye, ArrowLeft, Tag } from 'lucide-react'
@@ -213,8 +213,7 @@ export default function ArticleDetailPage() {
             {/* Content */}
             <MarkdownRenderer content={article.content} />
 
-            {/* Comments */}
-            <CommentSection articleId={article.id} />
+
         </article>
     )
 }

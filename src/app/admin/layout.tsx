@@ -10,7 +10,6 @@ const adminLinks = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/articles', label: 'Artikel', icon: FileText },
     { href: '/admin/projects', label: 'Proyek', icon: FolderKanban },
-    { href: '/admin/comments', label: 'Komentar', icon: MessageSquare },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

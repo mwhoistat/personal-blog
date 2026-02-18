@@ -161,68 +161,6 @@ export default function Navbar() {
                         {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                     </button>
 
-                    {/* Auth */}
-                    {user ? (
-                        <>
-                            {user.role === 'admin' && (
-                                <Link
-                                    href="/admin"
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.375rem',
-                                        padding: '0.375rem 0.75rem',
-                                        borderRadius: '0.5rem',
-                                        fontSize: '0.8125rem',
-                                        fontWeight: 500,
-                                        color: 'var(--color-accent)',
-                                        border: '1px solid var(--color-accent)',
-                                        textDecoration: 'none',
-                                        transition: 'all 0.2s ease',
-                                    }}
-                                >
-                                    <LayoutDashboard size={14} />
-                                    <span className="hidden-mobile">Admin</span>
-                                </Link>
-                            )}
-                            <button
-                                onClick={signOut}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.375rem',
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--color-text-muted)',
-                                    cursor: 'pointer',
-                                    padding: '0.5rem',
-                                    borderRadius: '0.5rem',
-                                    fontSize: '0.8125rem',
-                                }}
-                            >
-                                <LogOut size={16} />
-                            </button>
-                        </>
-                    ) : (
-                        <Link
-                            href="/login"
-                            style={{
-                                padding: '0.375rem 1rem',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.8125rem',
-                                fontWeight: 600,
-                                color: 'white',
-                                background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                                textDecoration: 'none',
-                                transition: 'all 0.2s ease',
-                                border: 'none',
-                            }}
-                            className="hidden-mobile"
-                        >
-                            Login
-                        </Link>
-                    )}
-
                     {/* Mobile menu toggle */}
                     <button
                         onClick={() => setMobileOpen(!mobileOpen)}
@@ -269,22 +207,6 @@ export default function Navbar() {
                             {link.label}
                         </Link>
                     ))}
-                    {!user && (
-                        <Link
-                            href="/login"
-                            onClick={() => setMobileOpen(false)}
-                            style={{
-                                display: 'block',
-                                padding: '0.75rem 0',
-                                color: 'var(--color-accent)',
-                                textDecoration: 'none',
-                                fontSize: '0.9375rem',
-                                fontWeight: 600,
-                            }}
-                        >
-                            Login
-                        </Link>
-                    )}
                 </div>
             )}
 

@@ -20,6 +20,14 @@ export default function LoginPage() {
         setError('')
         setLoading(true)
 
+        // Strict Admin Check
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+        if (adminEmail && email !== adminEmail) {
+            setError('Akses ditolak. Email tidak terdaftar sebagai admin.')
+            setLoading(false)
+            return
+        }
+
         const { error: err } = await signIn(email, password)
         if (err) {
             setError(err)
@@ -122,12 +130,6 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                    Belum punya akun?{' '}
-                    <Link href="/register" style={{ color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>
-                        Daftar
-                    </Link>
-                </p>
             </div>
         </div>
     )
