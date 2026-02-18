@@ -33,7 +33,7 @@ export default function LoginPage() {
             setError(err)
             setLoading(false)
         } else {
-            router.push('/')
+            router.push('/admin')
         }
     }
 
