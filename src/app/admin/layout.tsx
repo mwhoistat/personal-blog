@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { LayoutDashboard, FileText, FolderKanban, ArrowLeft, Menu, X, Settings } from 'lucide-react'
+import { LayoutDashboard, FileText, FolderKanban, ArrowLeft, Menu, X, Settings, ShieldAlert } from 'lucide-react'
 
 const adminLinks = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,14 +23,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (!loading) {
             if (!user) {
                 router.push('/login')
-            } else if (user.role !== 'admin') {
-                // If user is logged in but not admin, redirect to home
-                router.push('/')
             }
+            // Removed automatic redirect for non-admin to show Access Denied screen instead
         }
     }, [user, loading, router])
 
-    // Prevent rendering while loading or if unauthorized
+    // Prevent rendering while loading
     if (loading) {
         return (
             <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
@@ -44,10 +42,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )
     }
 
-    // If finished loading and not admin, return null (useEffect will redirect)
-    if (!user || user.role !== 'admin') {
-        return null
+    // Access Denied Screen
+    if (user && user.role !== 'admin') {
+        return (
+            <div className="animate-fade-in" style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '100vh', padding: '1.5rem', textAlign: 'center',
+                maxWidth: '500px', margin: '0 auto'
+            }}>
+                <div style={{
+                    marginBottom: '1.5rem', color: '#ef4444',
+                    background: 'rgba(239,68,68,0.1)', padding: '1rem', borderRadius: '50%'
+                }}>
+                    <ShieldAlert size={48} />
+                </div>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem' }}>Akses Ditolak</h1>
+                <p style={{ marginBottom: '2rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    Akun <strong>{user.username || 'ini'}</strong> tidak memiliki izin Admin.<br />
+                    Hanya pengguna dengan role 'admin' yang dapat mengakses halaman ini.
+                </p>
+
+                <div style={{
+                    width: '100%', padding: '1rem',
+                    backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
+                    borderRadius: '0.75rem', marginBottom: '2rem', textAlign: 'left'
+                }}>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
+                        Solusi (Untuk Developer):
+                    </p>
+                    <p style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--color-text)' }}>
+                        Buka Supabase Table Editor &rarr; Table <code>profiles</code> &rarr; Cari user ini &rarr; Ubah column <code>role</code> menjadi <code>'admin'</code>.
+                    </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <Link href="/" style={{
+                        padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,
+                        backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text)',
+                        textDecoration: 'none', border: '1px solid var(--color-border)'
+                    }}>
+                        Kembali ke Blog
+                    </Link>
+                </div>
+            </div>
+        )
     }
+
+    // If not user (useEffect will redirect), render null to avoid flash
+    if (!user) return null
 
     return (
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
