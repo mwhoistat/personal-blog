@@ -4,27 +4,23 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/utils'
-import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, EyeOff, Search, FileText } from 'lucide-react'
 import type { Article } from '@/lib/types'
 
 export default function AdminArticlesPage() {
     const [articles, setArticles] = useState<Article[]>([])
     const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState('')
     const supabase = createClient()
 
-    useEffect(() => {
-        fetchArticles()
-    }, [])
+    useEffect(() => { fetchArticles() }, [])
 
     const fetchArticles = async () => {
         try {
             const { data } = await supabase.from('articles').select('*').order('created_at', { ascending: false })
             setArticles(data || [])
-        } catch {
-            setArticles([])
-        } finally {
-            setLoading(false)
-        }
+        } catch { setArticles([]) }
+        finally { setLoading(false) }
     }
 
     const handleDelete = async (id: string) => {
@@ -38,30 +34,56 @@ export default function AdminArticlesPage() {
         setArticles(articles.map((a) => a.id === article.id ? { ...a, published: !a.published } : a))
     }
 
+    const filtered = articles.filter(a => a.title.toLowerCase().includes(search.toLowerCase()))
+
     return (
         <div className="animate-fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Kelola Artikel</h1>
                 <Link href="/admin/articles/new" style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
                     padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8125rem',
-                    color: 'white', background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                    textDecoration: 'none',
+                    color: 'white', background: 'linear-gradient(135deg, var(--color-accent), #a855f7)', textDecoration: 'none',
                 }}>
                     <Plus size={16} /> Artikel Baru
                 </Link>
             </div>
 
+            {/* Search */}
+            {articles.length > 0 && (
+                <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                    <input
+                        value={search} onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari artikel..."
+                        style={{
+                            width: '100%', padding: '0.625rem 0.875rem 0.625rem 2.5rem', borderRadius: '0.5rem',
+                            border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
+                            color: 'var(--color-text)', fontSize: '0.875rem', outline: 'none',
+                        }}
+                    />
+                </div>
+            )}
+
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>Memuat...</div>
             ) : articles.length === 0 ? (
                 <div style={{
-                    padding: '3rem', textAlign: 'center', borderRadius: '0.75rem',
+                    padding: '4rem 2rem', textAlign: 'center', borderRadius: '0.75rem',
                     border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
-                    color: 'var(--color-text-muted)',
                 }}>
-                    <p style={{ marginBottom: '0.5rem' }}>Belum ada artikel.</p>
-                    <Link href="/admin/articles/new" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>Buat artikel pertama</Link>
+                    <FileText size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', opacity: 0.4 }} />
+                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.75rem', fontSize: '0.9375rem' }}>Belum ada artikel.</p>
+                    <Link href="/admin/articles/new" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                        color: 'var(--color-accent)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none',
+                    }}>
+                        <Plus size={14} /> Buat Artikel Pertama
+                    </Link>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+                    Tidak ada artikel ditemukan untuk &quot;{search}&quot;
                 </div>
             ) : (
                 <div style={{ borderRadius: '0.75rem', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
@@ -77,7 +99,7 @@ export default function AdminArticlesPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {articles.map((article) => (
+                                {filtered.map((article) => (
                                     <tr key={article.id} style={{ borderTop: '1px solid var(--color-border)' }}>
                                         <td style={{ padding: '0.75rem 1rem' }}>
                                             <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{article.title}</p>
@@ -94,7 +116,7 @@ export default function AdminArticlesPage() {
                                                 display: 'flex', alignItems: 'center', gap: '0.25rem',
                                                 padding: '0.25rem 0.5rem', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600, border: 'none', cursor: 'pointer',
                                                 backgroundColor: article.published ? 'rgba(16,185,129,0.1)' : 'var(--color-bg-tertiary)',
-                                                color: article.published ? 'var(--color-success)' : 'var(--color-text-muted)',
+                                                color: article.published ? '#10b981' : 'var(--color-text-muted)',
                                             }}>
                                                 {article.published ? <><Eye size={12} /> Published</> : <><EyeOff size={12} /> Draft</>}
                                             </button>

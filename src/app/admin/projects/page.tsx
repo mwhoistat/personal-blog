@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/utils'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, FolderKanban } from 'lucide-react'
 import type { Project } from '@/lib/types'
 
 export default function AdminProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState('')
     const supabase = createClient()
 
     useEffect(() => {
@@ -29,9 +30,11 @@ export default function AdminProjectsPage() {
         setProjects(projects.filter((p) => p.id !== id))
     }
 
+    const filtered = projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
+
     return (
         <div className="animate-fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Kelola Proyek</h1>
                 <Link href="/admin/projects/new" style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
@@ -42,12 +45,41 @@ export default function AdminProjectsPage() {
                 </Link>
             </div>
 
+            {/* Search */}
+            {projects.length > 0 && (
+                <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+                    <input
+                        value={search} onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari proyek..."
+                        style={{
+                            width: '100%', padding: '0.625rem 0.875rem 0.625rem 2.5rem', borderRadius: '0.5rem',
+                            border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
+                            color: 'var(--color-text)', fontSize: '0.875rem', outline: 'none',
+                        }}
+                    />
+                </div>
+            )}
+
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>Memuat...</div>
             ) : projects.length === 0 ? (
-                <div style={{ padding: '3rem', textAlign: 'center', borderRadius: '0.75rem', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)' }}>
-                    <p style={{ marginBottom: '0.5rem' }}>Belum ada proyek.</p>
-                    <Link href="/admin/projects/new" style={{ color: 'var(--color-accent)', fontWeight: 600 }}>Buat proyek pertama</Link>
+                <div style={{
+                    padding: '4rem 2rem', textAlign: 'center', borderRadius: '0.75rem',
+                    border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
+                }}>
+                    <FolderKanban size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', opacity: 0.4 }} />
+                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.75rem', fontSize: '0.9375rem' }}>Belum ada proyek.</p>
+                    <Link href="/admin/projects/new" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                        color: 'var(--color-accent)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none',
+                    }}>
+                        <Plus size={14} /> Buat Proyek Pertama
+                    </Link>
+                </div>
+            ) : filtered.length === 0 ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+                    Tidak ada proyek ditemukan untuk &quot;{search}&quot;
                 </div>
             ) : (
                 <div style={{ borderRadius: '0.75rem', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
@@ -63,7 +95,7 @@ export default function AdminProjectsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {projects.map((project) => (
+                                {filtered.map((project) => (
                                     <tr key={project.id} style={{ borderTop: '1px solid var(--color-border)' }}>
                                         <td style={{ padding: '0.75rem 1rem' }}>
                                             <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{project.title}</p>
