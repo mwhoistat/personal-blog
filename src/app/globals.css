@@ -49,6 +49,7 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
 }
 
 ::selection {
@@ -70,7 +71,8 @@ body {
   border-radius: 3px;
 }
 
-/* Skeleton animation */
+/* ===== Animations ===== */
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -88,11 +90,10 @@ body {
   border-radius: 0.375rem;
 }
 
-/* Fade in animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
 
   to {
@@ -101,8 +102,98 @@ body {
   }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-toast {
+  animation: toastIn 0.3s ease-out forwards;
 }
 
 .animate-fade-in-delay-1 {
@@ -120,7 +211,93 @@ body {
   opacity: 0;
 }
 
-/* Prose styles for markdown content */
+.animate-fade-in-delay-4 {
+  animation-delay: 0.4s;
+  opacity: 0;
+}
+
+/* ===== Micro-Interactions ===== */
+
+/* Interactive card with elevation */
+.card-interactive {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(99, 102, 241, 0.08);
+  border-color: var(--color-accent);
+}
+
+.dark .card-interactive:hover {
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(129, 140, 248, 0.1);
+}
+
+/* Button with smooth press effect */
+.btn-interactive {
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+
+.btn-interactive:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+/* Navbar active link underline */
+.nav-link {
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, var(--color-accent), #a855f7);
+  border-radius: 1px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+  width: 100%;
+  left: 0;
+}
+
+/* Gradient text animation */
+.gradient-text-animated {
+  background: linear-gradient(135deg, var(--color-accent), #a855f7, #ec4899, var(--color-accent));
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientShift 4s ease infinite;
+}
+
+/* Smooth page wrapper */
+.page-enter {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Image zoom on card hover */
+.card-interactive:hover .card-image {
+  transform: scale(1.05);
+}
+
+.card-image {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Prose styles for markdown ===== */
 .prose {
   max-width: 72ch;
   line-height: 1.8;
@@ -131,6 +308,7 @@ body {
   font-weight: 800;
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  letter-spacing: -0.025em;
 }
 
 .prose h2 {
@@ -140,6 +318,7 @@ body {
   margin-bottom: 0.5em;
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 0.3em;
+  letter-spacing: -0.02em;
 }
 
 .prose h3 {
@@ -156,6 +335,8 @@ body {
 .prose a {
   color: var(--color-accent);
   text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
 }
 
 .prose a:hover {

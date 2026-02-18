@@ -7,42 +7,24 @@ export default function ArticleCard({ article }: { article: Article }) {
     return (
         <Link
             href={`/articles/${article.slug}`}
+            className="card-interactive"
             style={{
                 display: 'block',
                 borderRadius: '0.75rem',
                 border: '1px solid var(--color-border)',
                 backgroundColor: 'var(--color-bg-secondary)',
                 overflow: 'hidden',
-                transition: 'all 0.3s ease',
                 textDecoration: 'none',
                 color: 'inherit',
             }}
-            onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)'
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.1)'
-                e.currentTarget.style.borderColor = 'var(--color-accent)'
-            }}
-            onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-                e.currentTarget.style.borderColor = 'var(--color-border)'
-            }}
         >
             {article.cover_image && (
-                <div style={{
-                    width: '100%',
-                    height: '200px',
-                    overflow: 'hidden',
-                }}>
+                <div style={{ width: '100%', height: '200px', overflow: 'hidden' }}>
                     <img
                         src={article.cover_image}
                         alt={article.title}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            transition: 'transform 0.3s ease',
-                        }}
+                        className="card-image"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                 </div>
             )}
@@ -60,17 +42,14 @@ export default function ArticleCard({ article }: { article: Article }) {
                         {article.category}
                     </span>
                     {article.tags?.slice(0, 2).map((tag) => (
-                        <span
-                            key={tag}
-                            style={{
-                                padding: '0.125rem 0.5rem',
-                                borderRadius: '9999px',
-                                fontSize: '0.6875rem',
-                                fontWeight: 500,
-                                backgroundColor: 'var(--color-bg-tertiary)',
-                                color: 'var(--color-text-muted)',
-                            }}
-                        >
+                        <span key={tag} style={{
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.6875rem',
+                            fontWeight: 500,
+                            backgroundColor: 'var(--color-bg-tertiary)',
+                            color: 'var(--color-text-muted)',
+                        }}>
                             #{tag}
                         </span>
                     ))}
@@ -82,6 +61,7 @@ export default function ArticleCard({ article }: { article: Article }) {
                     fontWeight: 700,
                     marginBottom: '0.5rem',
                     lineHeight: 1.4,
+                    letterSpacing: '-0.015em',
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',

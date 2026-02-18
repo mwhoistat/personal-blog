@@ -89,12 +89,11 @@ export default function HomePage() {
             letterSpacing: '-0.025em',
           }}>
             Hai, Saya{' '}
-            <span style={{
-              background: 'linear-gradient(135deg, var(--color-accent), #a855f7, #ec4899)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+            <span className="gradient-text-animated" style={{
+              fontSize: 'inherit',
+              fontWeight: 'inherit',
             }}>
-              Nurathallah
+              Atha
             </span>
           </h1>
 

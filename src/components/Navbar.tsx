@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
 import { useAuth } from './AuthProvider'
 import { Sun, Moon, Menu, X, Search, LogOut, LayoutDashboard } from 'lucide-react'
@@ -9,6 +10,7 @@ import { Sun, Moon, Menu, X, Search, LogOut, LayoutDashboard } from 'lucide-reac
 export default function Navbar() {
     const { theme, toggleTheme } = useTheme()
     const { user, signOut } = useAuth()
+    const pathname = usePathname()
     const [mobileOpen, setMobileOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -17,7 +19,6 @@ export default function Navbar() {
         { href: '/', label: 'Beranda' },
         { href: '/articles', label: 'Artikel' },
         { href: '/projects', label: 'Proyek' },
-        { href: '/about', label: 'Tentang' },
     ]
 
     const handleSearch = (e: React.FormEvent) => {
@@ -29,14 +30,19 @@ export default function Navbar() {
         }
     }
 
+    const isActiveLink = (href: string) => {
+        if (href === '/') return pathname === '/'
+        return pathname.startsWith(href)
+    }
+
     return (
         <header
             style={{
                 position: 'sticky',
                 top: 0,
                 zIndex: 50,
-                backdropFilter: 'blur(12px)',
-                backgroundColor: 'color-mix(in srgb, var(--color-bg) 80%, transparent)',
+                backdropFilter: 'blur(16px)',
+                backgroundColor: 'color-mix(in srgb, var(--color-bg) 85%, transparent)',
                 borderBottom: '1px solid var(--color-border)',
                 transition: 'all 0.3s ease',
             }}
@@ -58,13 +64,12 @@ export default function Navbar() {
                     style={{
                         fontSize: '1.25rem',
                         fontWeight: 800,
-                        background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        letterSpacing: '-0.025em',
+                        letterSpacing: '-0.03em',
+                        textDecoration: 'none',
                     }}
+                    className="gradient-text-animated"
                 >
-                    MyBlog
+                    Atha.
                 </Link>
 
                 {/* Desktop Nav */}
@@ -73,22 +78,15 @@ export default function Navbar() {
                         <Link
                             key={link.href}
                             href={link.href}
+                            className={`nav-link ${isActiveLink(link.href) ? 'active' : ''}`}
                             style={{
                                 padding: '0.5rem 0.875rem',
                                 borderRadius: '0.5rem',
                                 fontSize: '0.875rem',
-                                fontWeight: 500,
-                                color: 'var(--color-text-secondary)',
+                                fontWeight: isActiveLink(link.href) ? 600 : 500,
+                                color: isActiveLink(link.href) ? 'var(--color-accent)' : 'var(--color-text-secondary)',
                                 transition: 'all 0.2s ease',
                                 textDecoration: 'none',
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.color = 'var(--color-text)'
-                                e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)'
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.color = 'var(--color-text-secondary)'
-                                e.currentTarget.style.backgroundColor = 'transparent'
                             }}
                         >
                             {link.label}
@@ -97,10 +95,10 @@ export default function Navbar() {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                     {/* Search */}
                     {searchOpen ? (
-                        <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <form onSubmit={handleSearch} className="animate-scale-in" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <input
                                 type="text"
                                 placeholder="Cari..."
@@ -110,16 +108,17 @@ export default function Navbar() {
                                 style={{
                                     padding: '0.375rem 0.75rem',
                                     borderRadius: '0.5rem',
-                                    border: '1px solid var(--color-border)',
+                                    border: '1px solid var(--color-accent)',
                                     backgroundColor: 'var(--color-bg-secondary)',
                                     color: 'var(--color-text)',
                                     fontSize: '0.875rem',
                                     width: '180px',
                                     outline: 'none',
+                                    boxShadow: '0 0 0 3px var(--color-accent-light)',
                                 }}
                             />
                             <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-                                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '0.375rem' }}>
+                                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '0.375rem', display: 'flex' }}>
                                 <X size={18} />
                             </button>
                         </form>
@@ -127,15 +126,10 @@ export default function Navbar() {
                         <button
                             onClick={() => setSearchOpen(true)}
                             style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--color-text-secondary)',
-                                cursor: 'pointer',
-                                padding: '0.5rem',
-                                borderRadius: '0.5rem',
-                                transition: 'all 0.2s ease',
-                                display: 'flex',
-                                alignItems: 'center',
+                                background: 'none', border: 'none',
+                                color: 'var(--color-text-secondary)', cursor: 'pointer',
+                                padding: '0.5rem', borderRadius: '0.5rem',
+                                transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
                             }}
                         >
                             <Search size={18} />
@@ -146,15 +140,10 @@ export default function Navbar() {
                     <button
                         onClick={toggleTheme}
                         style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
-                            padding: '0.5rem',
-                            borderRadius: '0.5rem',
-                            transition: 'all 0.2s ease',
-                            display: 'flex',
-                            alignItems: 'center',
+                            background: 'none', border: 'none',
+                            color: 'var(--color-text-secondary)', cursor: 'pointer',
+                            padding: '0.5rem', borderRadius: '0.5rem',
+                            transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
                         }}
                         aria-label="Toggle theme"
                     >
@@ -165,12 +154,9 @@ export default function Navbar() {
                     <button
                         onClick={() => setMobileOpen(!mobileOpen)}
                         style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
-                            padding: '0.5rem',
-                            display: 'none',
+                            background: 'none', border: 'none',
+                            color: 'var(--color-text-secondary)', cursor: 'pointer',
+                            padding: '0.5rem', display: 'none',
                         }}
                         className="show-mobile"
                     >
@@ -182,12 +168,12 @@ export default function Navbar() {
             {/* Mobile menu */}
             {mobileOpen && (
                 <div
+                    className="show-mobile-block animate-slide-down"
                     style={{
                         padding: '0.5rem 1.5rem 1rem',
                         borderTop: '1px solid var(--color-border)',
                         backgroundColor: 'var(--color-bg)',
                     }}
-                    className="show-mobile-block"
                 >
                     {navLinks.map((link) => (
                         <Link
@@ -197,10 +183,10 @@ export default function Navbar() {
                             style={{
                                 display: 'block',
                                 padding: '0.75rem 0',
-                                color: 'var(--color-text-secondary)',
+                                color: isActiveLink(link.href) ? 'var(--color-accent)' : 'var(--color-text-secondary)',
                                 textDecoration: 'none',
                                 fontSize: '0.9375rem',
-                                fontWeight: 500,
+                                fontWeight: isActiveLink(link.href) ? 600 : 500,
                                 borderBottom: '1px solid var(--color-border)',
                             }}
                         >
