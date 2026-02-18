@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { LayoutDashboard, FileText, FolderKanban, MessageSquare, ArrowLeft, Menu, X } from 'lucide-react'
+import { LayoutDashboard, FileText, FolderKanban, ArrowLeft, Menu, X, Settings } from 'lucide-react'
 
 const adminLinks = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/articles', label: 'Artikel', icon: FileText },
     { href: '/admin/projects', label: 'Proyek', icon: FolderKanban },
+    { href: '/admin/settings', label: 'Pengaturan', icon: Settings },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
