@@ -1,152 +1,191 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Lock, Save, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Save, Github, Linkedin, Twitter, Instagram, Youtube, Mail, Loader2 } from 'lucide-react'
+
+interface SocialLink {
+    key: string
+    label: string
+    icon: React.ElementType
+    placeholder: string
+    value: string
+}
+
+const defaultLinks: Omit<SocialLink, 'value'>[] = [
+    { key: 'social_github', label: 'GitHub', icon: Github, placeholder: 'https://github.com/username' },
+    { key: 'social_linkedin', label: 'LinkedIn', icon: Linkedin, placeholder: 'https://linkedin.com/in/username' },
+    { key: 'social_twitter', label: 'Twitter / X', icon: Twitter, placeholder: 'https://twitter.com/username' },
+    { key: 'social_instagram', label: 'Instagram', icon: Instagram, placeholder: 'https://instagram.com/username' },
+    { key: 'social_youtube', label: 'YouTube', icon: Youtube, placeholder: 'https://youtube.com/@channel' },
+    { key: 'social_email', label: 'Email', icon: Mail, placeholder: 'nama@email.com' },
+]
 
 export default function SettingsPage() {
-    const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
-    const [loading, setLoading] = useState(false)
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+    const [links, setLinks] = useState<SocialLink[]>(
+        defaultLinks.map(l => ({ ...l, value: '' }))
+    )
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-    const handleUpdatePassword = async (e: React.FormEvent) => {
+    const showToast = (type: 'success' | 'error', text: string) => {
+        setToast({ type, text })
+        setTimeout(() => setToast(null), 3000)
+    }
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const supabase = createClient()
+            try {
+                const { data } = await supabase
+                    .from('site_settings')
+                    .select('key, value')
+                    .in('key', defaultLinks.map(l => l.key))
+
+                if (data) {
+                    setLinks(prev => prev.map(link => {
+                        const found = data.find(d => d.key === link.key)
+                        return found ? { ...link, value: found.value || '' } : link
+                    }))
+                }
+            } catch {
+                // Table might not exist yet
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchSettings()
+    }, [])
+
+    const handleChange = (key: string, value: string) => {
+        setLinks(prev => prev.map(l => l.key === key ? { ...l, value } : l))
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setMessage(null)
-
-        if (password.length < 6) {
-            setMessage({ type: 'error', text: 'Password minimal 6 karakter' })
-            return
-        }
-
-        if (password !== confirmPassword) {
-            setMessage({ type: 'error', text: 'Konfirmasi password tidak cocok' })
-            return
-        }
-
-        setLoading(true)
+        setSaving(true)
         const supabase = createClient()
 
         try {
-            const { error } = await supabase.auth.updateUser({ password: password })
+            // Upsert each setting
+            const promises = links.map(link =>
+                supabase.from('site_settings').upsert(
+                    { key: link.key, value: link.value.trim(), updated_at: new Date().toISOString() },
+                    { onConflict: 'key' }
+                )
+            )
+            const results = await Promise.all(promises)
+            const hasError = results.some(r => r.error)
 
-            if (error) throw error
-
-            setMessage({ type: 'success', text: 'Password berhasil diperbarui!' })
-            setPassword('')
-            setConfirmPassword('')
-        } catch (error: any) {
-            setMessage({ type: 'error', text: error.message || 'Gagal memperbarui password' })
+            if (hasError) {
+                const err = results.find(r => r.error)?.error
+                showToast('error', err?.message || 'Gagal menyimpan pengaturan')
+            } else {
+                showToast('success', 'Pengaturan berhasil disimpan!')
+            }
+        } catch {
+            showToast('error', 'Terjadi kesalahan')
         } finally {
-            setLoading(false)
+            setSaving(false)
         }
     }
 
-    return (
-        <div className="animate-fade-in">
-            <h1 style={{ fontSize: '1.875rem', fontWeight: 800, marginBottom: '2rem' }}>Pengaturan</h1>
+    const inputStyle: React.CSSProperties = {
+        width: '100%', padding: '0.625rem 0.875rem 0.625rem 2.75rem',
+        borderRadius: '0.5rem', border: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text)',
+        fontSize: '0.9375rem', outline: 'none', fontFamily: 'inherit',
+        transition: 'border-color 0.2s ease',
+    }
 
-            <div style={{
-                maxWidth: '500px',
-                padding: '2rem',
-                backgroundColor: 'var(--color-bg-secondary)',
-                borderRadius: '1rem',
-                border: '1px solid var(--color-border)'
-            }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Lock size={20} className="text-[var(--color-accent)]" />
-                    Ganti Password
-                </h2>
-
-                {message && (
-                    <div style={{
-                        padding: '1rem',
-                        borderRadius: '0.5rem',
-                        marginBottom: '1.5rem',
-                        backgroundColor: message.type === 'success' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                        border: `1px solid ${message.type === 'success' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
-                        color: message.type === 'success' ? 'var(--color-success, #22c55e)' : 'var(--color-danger)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        fontSize: '0.875rem'
-                    }}>
-                        {message.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                        {message.text}
-                    </div>
-                )}
-
-                <form onSubmit={handleUpdatePassword}>
-                    <div style={{ marginBottom: '1.25rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                            Password Baru
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Minimal 6 karakter"
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '0.5rem',
-                                border: '1px solid var(--color-border)',
-                                backgroundColor: 'var(--color-bg)',
-                                color: 'var(--color-text)',
-                                outline: 'none'
-                            }}
-                        />
-                    </div>
-
-                    <div style={{ marginBottom: '2rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                            Konfirmasi Password Baru
-                        </label>
-                        <input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Ulangi password baru"
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '0.5rem',
-                                border: '1px solid var(--color-border)',
-                                backgroundColor: 'var(--color-bg)',
-                                color: 'var(--color-text)',
-                                outline: 'none'
-                            }}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '0.875rem',
-                            borderRadius: '0.5rem',
-                            backgroundColor: 'var(--color-accent)',
-                            color: 'white',
-                            fontWeight: 600,
-                            border: 'none',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            opacity: loading ? 0.7 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.5rem',
-                            transition: 'opacity 0.2s'
-                        }}
-                    >
-                        {loading ? 'Menyimpan...' : (
-                            <>
-                                <Save size={18} /> Simpan Password
-                            </>
-                        )}
-                    </button>
-                </form>
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+                <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-text-muted)' }} />
             </div>
+        )
+    }
+
+    return (
+        <div className="animate-fade-in" style={{ maxWidth: '640px' }}>
+            {/* Toast */}
+            {toast && (
+                <div style={{
+                    position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 100,
+                    padding: '0.875rem 1.25rem', borderRadius: '0.625rem',
+                    backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+                    color: 'white', fontWeight: 600, fontSize: '0.875rem',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)', animation: 'fadeIn 0.3s ease',
+                }}>
+                    {toast.text}
+                </div>
+            )}
+
+            <div style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem' }}>Pengaturan</h1>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+                    Kelola link sosial media yang ditampilkan di website.
+                </p>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+                {/* Social Links Section */}
+                <div style={{
+                    border: '1px solid var(--color-border)', borderRadius: '0.75rem',
+                    overflow: 'hidden', marginBottom: '1.5rem',
+                }}>
+                    <div style={{
+                        padding: '1rem 1.25rem', backgroundColor: 'var(--color-bg-secondary)',
+                        borderBottom: '1px solid var(--color-border)',
+                    }}>
+                        <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Sosial Media</h2>
+                        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
+                            Masukkan URL akun sosial media Anda. Kosongkan jika tidak ingin ditampilkan.
+                        </p>
+                    </div>
+
+                    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {links.map(({ key, label, icon: Icon, placeholder, value }) => (
+                            <div key={key}>
+                                <label style={{
+                                    display: 'block', fontSize: '0.8125rem', fontWeight: 600,
+                                    marginBottom: '0.375rem', color: 'var(--color-text-secondary)',
+                                }}>
+                                    {label}
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <Icon size={16} style={{
+                                        position: 'absolute', left: '0.875rem', top: '50%',
+                                        transform: 'translateY(-50%)', color: 'var(--color-text-muted)',
+                                    }} />
+                                    <input
+                                        type={key === 'social_email' ? 'email' : 'url'}
+                                        value={value}
+                                        onChange={(e) => handleChange(key, e.target.value)}
+                                        placeholder={placeholder}
+                                        style={inputStyle}
+                                        onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)' }}
+                                        onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)' }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Submit */}
+                <button type="submit" disabled={saving} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.9375rem',
+                    color: 'white', background: saving ? 'var(--color-text-muted)' : 'linear-gradient(135deg, var(--color-accent), #a855f7)',
+                    border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
+                    transition: 'opacity 0.2s',
+                }}>
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                </button>
+            </form>
         </div>
     )
 }

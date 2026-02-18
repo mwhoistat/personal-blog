@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/components/AuthProvider'
 import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -46,7 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main style={{ flex: 1 }}>
               {children}
             </main>
-            <Footer />
+
           </AuthProvider>
         </ThemeProvider>
       </body>

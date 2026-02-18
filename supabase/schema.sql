@@ -111,3 +111,32 @@ begin
   end if;
 end;
 $$ language plpgsql security definer;
+
+-- =============================================
+-- Site Settings table (key-value store)
+-- =============================================
+create table if not exists public.site_settings (
+  key text primary key,
+  value text default '',
+  updated_at timestamptz default now()
+);
+
+alter table public.site_settings enable row level security;
+
+-- Anyone can read settings (needed for footer/navbar)
+create policy "Settings are viewable by everyone" on public.site_settings for select using (true);
+
+-- Only admins can insert/update/delete settings
+create policy "Admins can manage settings" on public.site_settings for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+);
+
+-- Seed default social media keys (run once)
+insert into public.site_settings (key, value) values
+  ('social_github', ''),
+  ('social_linkedin', ''),
+  ('social_twitter', ''),
+  ('social_instagram', ''),
+  ('social_youtube', ''),
+  ('social_email', '')
+on conflict (key) do nothing;
