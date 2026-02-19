@@ -18,6 +18,13 @@ turndownService.addRule('strikethrough', {
     }
 })
 
+turndownService.addRule('paragraph', {
+    filter: 'p',
+    replacement: function (content) {
+        return '\n\n' + content + '\n\n'
+    }
+})
+
 interface UseSmartPasteProps {
     onPaste: (text: string) => void
     textareaRef: React.RefObject<HTMLTextAreaElement | null>
