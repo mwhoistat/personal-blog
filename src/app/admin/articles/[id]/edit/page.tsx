@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List,
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import FloatingLinkToolbar from '@/components/admin/FloatingLinkToolbar'
+import { useSmartPaste } from '@/hooks/useSmartPaste'
 import { logActivity } from '@/lib/activity'
 import type { Article } from '@/lib/types'
 
@@ -26,6 +27,7 @@ export default function EditArticlePage() {
     const [showPreview, setShowPreview] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+    const { handlePaste } = useSmartPaste()
 
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
     const readingTime = Math.max(1, Math.ceil(wordCount / 200))
@@ -233,12 +235,19 @@ export default function EditArticlePage() {
                             )}
                         </div>
                     ) : (
-                        <textarea id="md-editor" value={content} onChange={(e) => setContent(e.target.value)}
-                            rows={20} style={{
+                        <textarea
+                            id="md-editor"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            onPaste={(e) => handlePaste(e, setContent)}
+                            rows={20}
+                            style={{
                                 ...inputStyle, resize: 'vertical', lineHeight: 1.7,
                                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace", fontSize: '0.875rem',
                                 borderRadius: '0 0 0.5rem 0.5rem',
-                            }} required />
+                            }}
+                            required
+                        />
                     )}
                 </div>
 

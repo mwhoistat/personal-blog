@@ -8,9 +8,11 @@ import { logActivity } from '@/lib/activity'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
+import { useSmartPaste } from '@/hooks/useSmartPaste'
 
 export default function NewArticlePage() {
     const router = useRouter()
+    const { handlePaste } = useSmartPaste()
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
     const [excerpt, setExcerpt] = useState('')
@@ -213,14 +215,21 @@ export default function NewArticlePage() {
                             )}
                         </div>
                     ) : (
-                        <textarea id="md-editor" value={content} onChange={(e) => setContent(e.target.value)}
-                            placeholder="Tulis konten artikel dalam Markdown..." rows={20}
+                        <textarea
+                            id="md-editor"
+                            value={content}
+                            onChange={(e) => setContent(e.target.value)}
+                            onPaste={(e) => handlePaste(e, setContent)}
+                            placeholder="Tulis konten artikel dalam Markdown..."
+                            rows={20}
                             style={{
                                 ...inputStyle, resize: 'vertical', lineHeight: 1.7,
                                 fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
                                 fontSize: '0.875rem',
                                 borderRadius: showPreview ? '0.5rem' : '0 0 0.5rem 0.5rem',
-                            }} required />
+                            }}
+                            required
+                        />
                     )}
                 </div>
 
