@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
@@ -8,7 +8,6 @@ import { logActivity } from '@/lib/activity'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
-import { useSmartPaste } from '@/hooks/useSmartPaste'
 
 export default function NewArticlePage() {
     const router = useRouter()
@@ -23,13 +22,6 @@ export default function NewArticlePage() {
     const [showPreview, setShowPreview] = useState(false)
     const [showSettings, setShowSettings] = useState(true)
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-    // Smart Paste Integration
-    useSmartPaste({
-        textareaRef,
-        onPaste: (newContent) => setContent(newContent)
-    })
 
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
     const readingTime = Math.max(1, Math.ceil(wordCount / 200))
@@ -40,7 +32,7 @@ export default function NewArticlePage() {
     }
 
     const insertMarkdown = (prefix: string, suffix: string = '') => {
-        const textarea = textareaRef.current
+        const textarea = document.querySelector<HTMLTextAreaElement>('#md-editor')
         if (!textarea) return
         const start = textarea.selectionStart
         const end = textarea.selectionEnd
@@ -221,7 +213,7 @@ export default function NewArticlePage() {
                             )}
                         </div>
                     ) : (
-                        <textarea id="md-editor" ref={textareaRef} value={content} onChange={(e) => setContent(e.target.value)}
+                        <textarea id="md-editor" value={content} onChange={(e) => setContent(e.target.value)}
                             placeholder="Tulis konten artikel dalam Markdown..." rows={20}
                             style={{
                                 ...inputStyle, resize: 'vertical', lineHeight: 1.7,

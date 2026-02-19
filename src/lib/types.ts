@@ -8,6 +8,8 @@ export interface Profile {
     created_at: string
 }
 
+export type ArticleStatus = 'draft' | 'published' | 'archived'
+
 export interface Article {
     id: string
     title: string
@@ -17,7 +19,9 @@ export interface Article {
     cover_image: string | null
     category: string
     tags: string[]
-    published: boolean
+    published: boolean // @deprecated use status instead
+    status: ArticleStatus
+    published_at: string | null
     view_count: number
     author_id: string
     created_at: string
@@ -36,6 +40,8 @@ export interface Project {
     github_url: string | null
     tags: string[]
     featured: boolean
+    status: ArticleStatus // Shared status type
+    published_at: string | null
     view_count: number
     created_at: string
     updated_at: string

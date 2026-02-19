@@ -1,21 +1,18 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react' // Added useRef
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import FloatingLinkToolbar from '@/components/admin/FloatingLinkToolbar'
-import { useSmartPaste } from '@/hooks/useSmartPaste' // Import Hook
 import { logActivity } from '@/lib/activity'
 import type { Article } from '@/lib/types'
 
 export default function EditArticlePage() {
-    // ... params, router ...
     const params = useParams()
     const router = useRouter()
-    // ... state ...
     const [article, setArticle] = useState<Article | null>(null)
     const [title, setTitle] = useState('')
     const [content, setContent] = useState('')
@@ -29,16 +26,8 @@ export default function EditArticlePage() {
     const [showPreview, setShowPreview] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-    const textareaRef = useRef<HTMLTextAreaElement>(null) // Create Ref
-
-    // Smart Paste Integration
-    useSmartPaste({
-        textareaRef,
-        onPaste: (newContent) => setContent(newContent)
-    })
 
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0
-    // ... rest of logic ...
     const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
     const showToast = (type: 'success' | 'error', text: string) => {
@@ -47,7 +36,7 @@ export default function EditArticlePage() {
     }
 
     const insertMarkdown = (prefix: string, suffix: string = '') => {
-        const textarea = textareaRef.current
+        const textarea = document.querySelector<HTMLTextAreaElement>('#md-editor')
         if (!textarea) return
         const start = textarea.selectionStart
         const end = textarea.selectionEnd
@@ -119,7 +108,7 @@ export default function EditArticlePage() {
 
     return (
         <div className="animate-fade-in" style={{ maxWidth: '960px' }}>
-            {/* ... toast ... */}
+            {/* Toast */}
             {toast && (
                 <div style={{
                     position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 100,
@@ -142,7 +131,6 @@ export default function EditArticlePage() {
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Edit Artikel</h1>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* ... fields ... */}
                 <div>
                     <label style={labelStyle}>Judul</label>
                     <input value={title} onChange={(e) => setTitle(e.target.value)} required style={{ ...inputStyle, fontSize: '1.125rem', fontWeight: 600, padding: '0.875rem' }} />
@@ -193,9 +181,8 @@ export default function EditArticlePage() {
 
                 {/* Markdown Editor */}
                 <div className="relative">
-                    {/* Pass textareaRef to Toolbar */}
                     <FloatingLinkToolbar
-                        textareaRef={textareaRef}
+                        textareaRef={{ current: document.querySelector('#md-editor') as HTMLTextAreaElement }}
                         onInsertLink={(url) => insertMarkdown('[', `](${url})`)}
                     />
 
@@ -246,11 +233,7 @@ export default function EditArticlePage() {
                             )}
                         </div>
                     ) : (
-                        <textarea
-                            ref={textareaRef} // Attach Ref
-                            id="md-editor"
-                            value={content}
-                            onChange={(e) => setContent(e.target.value)}
+                        <textarea id="md-editor" value={content} onChange={(e) => setContent(e.target.value)}
                             rows={20} style={{
                                 ...inputStyle, resize: 'vertical', lineHeight: 1.7,
                                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace", fontSize: '0.875rem',
