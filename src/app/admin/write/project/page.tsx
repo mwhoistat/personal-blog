@@ -32,6 +32,7 @@ function WriteProjectContent() {
     const supabase = createClient()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(projectId)
+    const isSavingRef = useRef(false)
 
     // Load Project if ID present
     useEffect(() => {
@@ -65,9 +66,11 @@ function WriteProjectContent() {
 
     // Auto-Save Logic
     const saveDraft = useCallback(async (manual = false) => {
-        if (!title) return
+        if (!title || isSavingRef.current) return
 
+        isSavingRef.current = true
         setSaving(true)
+
         try {
             const slug = slugify(title) || 'untitled-project'
             const payload = {
@@ -114,9 +117,10 @@ function WriteProjectContent() {
             if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
             console.error(error)
-            toast.error('Gagal menyimpan: ' + error.message)
+            // Don't toast on auto-save
         } finally {
             setSaving(false)
+            isSavingRef.current = false
         }
     }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, projectId, supabase])
 
@@ -127,9 +131,14 @@ function WriteProjectContent() {
             return
         }
 
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        if (isSavingRef.current) return
+
         if (!confirm('Apakah saya yakin ingin mempublish project ini?')) return
 
+        isSavingRef.current = true
         setSaving(true)
+
         try {
             const payload = {
                 title,
@@ -165,12 +174,14 @@ function WriteProjectContent() {
         } catch (error: any) {
             toast.error('Gagal publish: ' + error.message)
             setSaving(false)
+            isSavingRef.current = false
         }
     }
 
     // Debounced Autosave
     useEffect(() => {
-        if (loading) return
+        if (loading || status === 'published') return
+
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = setTimeout(() => {
             saveDraft()
@@ -178,7 +189,7 @@ function WriteProjectContent() {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, saveDraft, loading])
+    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, saveDraft, loading, status])
 
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>

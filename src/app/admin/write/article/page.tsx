@@ -29,6 +29,7 @@ function WriteArticleContent() {
     const supabase = createClient()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(articleId)
+    const isSavingRef = useRef(false) // Guard to prevent concurrent saves
 
     // Load Draft if ID present
     useEffect(() => {
@@ -57,11 +58,13 @@ function WriteArticleContent() {
         loadArticle()
     }, [articleId, supabase])
 
-    // Auto-Save Logic (Drafts only or silent updates)
+    // Auto-Save Logic
     const saveDraft = useCallback(async (manual = false) => {
-        if (!title && !content) return
+        if ((!title && !content) || isSavingRef.current) return
 
+        isSavingRef.current = true
         setSaving(true)
+
         try {
             const slug = slugify(title) || 'untitled-draft'
             const payload = {
@@ -72,7 +75,6 @@ function WriteArticleContent() {
                 cover_image: coverImage || null,
                 category: category || 'Uncategorized',
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-                // Do NOT change status here, keep current.
                 status: status,
                 updated_at: new Date().toISOString()
             }
@@ -100,7 +102,8 @@ function WriteArticleContent() {
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                if (!articleId) {
+                // Only replace state if valid ID and new
+                if (!articleId && result.data.id) {
                     window.history.replaceState(null, '', `/admin/write/article?id=${result.data.id}`)
                 }
             }
@@ -109,9 +112,11 @@ function WriteArticleContent() {
             if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
             console.error(error)
-            toast.error('Gagal menyimpan: ' + error.message)
+            // Don't toast on auto-save error to avoid spam, unless manual
+            if (manual) toast.error('Gagal menyimpan: ' + error.message)
         } finally {
             setSaving(false)
+            isSavingRef.current = false
         }
     }, [title, content, coverImage, tags, category, status, articleId, supabase])
 
@@ -122,9 +127,17 @@ function WriteArticleContent() {
             return
         }
 
+        // Clear any pending autosave
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+
+        // Prevent if already saving
+        if (isSavingRef.current) return
+
         if (!confirm('Apakah saya yakin ingin mempublish artikel ini?')) return
 
+        isSavingRef.current = true
         setSaving(true)
+
         try {
             const payload = {
                 title,
@@ -137,12 +150,11 @@ function WriteArticleContent() {
                 updated_at: new Date().toISOString()
             }
 
-            // We assume ID exists because auto-save runs first usually, but let's handle new too
+            // We assume ID exists because auto-save runs first usually
             let result
             if (currentIdRef.current) {
                 result = await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
             } else {
-                // Should technically auto-save first or handle insert here, but let's just insert
                 const { data: { user } } = await supabase.auth.getUser()
                 if (!user) throw new Error('No user')
                 result = await supabase.from('articles').insert({ ...payload, slug: slugify(title), author_id: user.id }).select().single()
@@ -161,23 +173,24 @@ function WriteArticleContent() {
         } catch (error: any) {
             toast.error('Gagal publish: ' + error.message)
             setSaving(false)
+            isSavingRef.current = false
         }
     }
 
     // Debounced Autosave
     useEffect(() => {
-        if (loading) return
+        if (loading || status === 'published') return // Don't autosave if published already? Or maybe yes but be careful.
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 
         saveTimeoutRef.current = setTimeout(() => {
             saveDraft()
-        }, 3000) // Auto-save after 3s of inactivity
+        }, 3000)
 
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
-    }, [title, content, coverImage, tags, category, saveDraft, loading])
+    }, [title, content, coverImage, tags, category, saveDraft, loading, status])
 
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
