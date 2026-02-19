@@ -1,143 +1,181 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
-import { formatDate } from '@/lib/utils'
-import { Plus, Edit, Trash2, Search, FolderKanban, Github } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, FolderKanban, Github, Filter, Eye, Calendar } from 'lucide-react'
 import type { Project } from '@/lib/types'
+import { formatDate } from '@/lib/utils'
+import DeleteButton from '@/components/admin/DeleteButton'
 
-export default function AdminProjectsPage() {
-    const [projects, setProjects] = useState<Project[]>([])
-    const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
-    const supabase = createClient()
+export default async function AdminProjectsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+    const params = await searchParams
+    const query = typeof params.q === 'string' ? params.q : ''
+    const statusFilter = typeof params.status === 'string' ? params.status : 'all'
 
-    useEffect(() => {
-        const fetch = async () => {
-            try {
-                const { data } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
-                setProjects(data || [])
-            } catch { setProjects([]) }
-            finally { setLoading(false) }
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+        {
+            cookies: {
+                getAll() { return cookieStore.getAll() },
+                setAll(cookiesToSet) { try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)) } catch { } },
+            },
         }
-        fetch()
-    }, [])
+    )
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Hapus proyek ini?')) return
-        await supabase.from('projects').delete().eq('id', id)
-        setProjects(projects.filter((p) => p.id !== id))
+    let dbQuery = supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+    if (query) {
+        dbQuery = dbQuery.ilike('title', `%${query}%`)
     }
 
-    const filtered = projects.filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
+    if (statusFilter !== 'all') {
+        dbQuery = dbQuery.eq('status', statusFilter)
+    }
+
+    const { data: projects, error } = await dbQuery
 
     return (
-        <div className="animate-fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Kelola Proyek</h1>
-                <Link href="/admin/projects/new" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                    padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8125rem',
-                    color: 'white', background: 'linear-gradient(135deg, var(--color-accent), #a855f7)', textDecoration: 'none',
-                }}>
-                    <Plus size={16} /> Proyek Baru
-                </Link>
-                <Link href="/admin/projects/import" style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                    padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8125rem',
-                    color: 'var(--color-bg)', background: 'var(--color-text)', textDecoration: 'none',
-                }}>
-                    <Github size={16} /> Import from GitHub
-                </Link>
-            </div>
-
-            {/* Search */}
-            {projects.length > 0 && (
-                <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-                    <Search size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                    <input
-                        value={search} onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Cari proyek..."
-                        style={{
-                            width: '100%', padding: '0.625rem 0.875rem 0.625rem 2.5rem', borderRadius: '0.5rem',
-                            border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
-                            color: 'var(--color-text)', fontSize: '0.875rem', outline: 'none',
-                        }}
-                    />
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold font-mono-tech">Kelola Proyek</h1>
+                    <p className="text-[var(--color-text-secondary)] text-sm">Manage showcase projects.</p>
                 </div>
-            )}
-
-            {loading ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>Memuat...</div>
-            ) : projects.length === 0 ? (
-                <div style={{
-                    padding: '4rem 2rem', textAlign: 'center', borderRadius: '0.75rem',
-                    border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
-                }}>
-                    <FolderKanban size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', opacity: 0.4 }} />
-                    <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.75rem', fontSize: '0.9375rem' }}>Belum ada proyek.</p>
-                    <Link href="/admin/projects/new" style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
-                        color: 'var(--color-accent)', fontWeight: 600, fontSize: '0.875rem', textDecoration: 'none',
-                    }}>
-                        <Plus size={14} /> Buat Proyek Pertama
+                <div className="flex gap-2">
+                    <Link
+                        href="/admin/write/project"
+                        className="bg-gradient-to-r from-[var(--color-accent)] to-purple-600 text-white px-4 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-[var(--color-accent)]/20 text-sm"
+                    >
+                        <Plus size={16} /> New Project
+                    </Link>
+                    <Link
+                        href="/admin/projects/import"
+                        className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text)] px-4 py-2 rounded-lg font-bold hover:border-[var(--color-accent)] transition-colors flex items-center gap-2 text-sm"
+                    >
+                        <Github size={16} /> Import
                     </Link>
                 </div>
-            ) : filtered.length === 0 ? (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                    Tidak ada proyek ditemukan untuk &quot;{search}&quot;
+            </div>
+
+            {/* Filters & Search */}
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] p-4 rounded-xl flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" size={16} />
+                    <form>
+                        <input
+                            name="q"
+                            defaultValue={query}
+                            placeholder="Cari proyek..."
+                            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg pl-10 pr-4 py-2 text-sm outline-none focus:border-[var(--color-accent)]"
+                        />
+                    </form>
                 </div>
-            ) : (
-                <div style={{ borderRadius: '0.75rem', border: '1px solid var(--color-border)', overflow: 'hidden' }}>
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                            <thead>
-                                <tr style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
-                                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Judul</th>
-                                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Tags</th>
-                                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Featured</th>
-                                    <th style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Tanggal</th>
-                                    <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Aksi</th>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Filter size={16} className="text-[var(--color-text-muted)]" />
+                    <div className="flex bg-[var(--color-bg)] rounded-lg p-1 border border-[var(--color-border)]">
+                        {['all', 'published', 'draft', 'archived'].map((s) => (
+                            <Link
+                                key={s}
+                                href={`/admin/projects?status=${s}`}
+                                className={`px-3 py-1 text-xs rounded-md capitalize transition-colors ${statusFilter === s ? 'bg-[var(--color-accent)] text-[var(--color-bg)] font-bold' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'}`}
+                            >
+                                {s}
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Projects List */}
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-[var(--color-border)] text-[var(--color-text-secondary)] text-xs uppercase font-mono-tech">
+                                <th className="p-4 font-normal">Judul</th>
+                                <th className="p-4 font-normal">Status</th>
+                                <th className="p-4 font-normal">Tags</th>
+                                <th className="p-4 font-normal">Featured</th>
+                                <th className="p-4 font-normal">Tanggal</th>
+                                <th className="p-4 font-normal text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--color-border)]">
+                            {projects?.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)] italic">
+                                        Tidak ada proyek yang ditemukan.
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.map((project) => (
-                                    <tr key={project.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                                        <td style={{ padding: '0.75rem 1rem' }}>
-                                            <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{project.title}</p>
-                                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{project.view_count} views</p>
-                                        </td>
-                                        <td style={{ padding: '0.75rem 1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                                {project.tags?.slice(0, 3).map((tag) => (
-                                                    <span key={tag} style={{ padding: '0.125rem 0.375rem', borderRadius: '9999px', fontSize: '0.625rem', backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)' }}>{tag}</span>
-                                                ))}
+                            ) : (
+                                projects?.map((project: Project) => (
+                                    <tr key={project.id} className="group hover:bg-[var(--color-bg-tertiary)] transition-colors">
+                                        <td className="p-4">
+                                            <div className="font-bold text-[var(--color-text)] line-clamp-1">{project.title}</div>
+                                            <div className="text-xs text-[var(--color-text-muted)] mt-1 flex items-center gap-1">
+                                                <Eye size={10} /> {project.view_count} views
                                             </div>
                                         </td>
-                                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem' }}>
-                                            {project.featured ? '⭐' : '—'}
+                                        <td className="p-4">
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${project.status === 'published'
+                                                    ? (project.published_at && new Date(project.published_at) > new Date()
+                                                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                                        : 'bg-green-500/10 text-green-500 border border-green-500/20')
+                                                    : project.status === 'draft'
+                                                        ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+                                                        : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                                                }`}>
+                                                {project.status === 'published' && project.published_at && new Date(project.published_at) > new Date()
+                                                    ? 'Scheduled'
+                                                    : project.status || 'draft'}
+                                            </span>
                                         </td>
-                                        <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-                                            {formatDate(project.created_at)}
+                                        <td className="p-4">
+                                            <div className="flex gap-1 flex-wrap">
+                                                {project.tags?.slice(0, 2).map(tag => (
+                                                    <span key={tag} className="text-[10px] bg-[var(--color-accent-light)] text-[var(--color-accent)] px-2 py-0.5 rounded-full">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                                {(project.tags?.length || 0) > 2 && <span className="text-[10px] text-[var(--color-text-muted)]">+{project.tags!.length - 2}</span>}
+                                            </div>
                                         </td>
-                                        <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                                                <Link href={`/admin/projects/${project.id}/edit`} style={{ padding: '0.375rem', borderRadius: '0.375rem', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)', display: 'flex' }}>
-                                                    <Edit size={14} />
+                                        <td className="p-4">
+                                            {project.featured ? <span className="text-yellow-400">⭐</span> : <span className="text-[var(--color-text-muted)]">-</span>}
+                                        </td>
+                                        <td className="p-4 text-[var(--color-text-secondary)] text-sm">
+                                            <div className="flex items-center gap-1">
+                                                <Calendar size={14} />
+                                                {formatDate(project.created_at)}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Link
+                                                    href={`/admin/write/project?id=${project.id}`}
+                                                    className="p-2 text-cyan-400 hover:bg-cyan-400/10 rounded transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Edit3 size={16} />
                                                 </Link>
-                                                <button onClick={() => handleDelete(project.id)} style={{ padding: '0.375rem', borderRadius: '0.375rem', color: 'var(--color-danger)', border: '1px solid var(--color-border)', background: 'none', cursor: 'pointer', display: 'flex' }}>
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <DeleteButton table="projects" id={project.id} title={project.title} />
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+            </div>
         </div>
     )
 }

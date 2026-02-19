@@ -82,6 +82,8 @@ export interface Certificate {
     file_url?: string | null
     category: CertificateCategory
     is_featured: boolean
+    status: ArticleStatus
+    published_at: string | null
     created_at: string
     updated_at: string
 }

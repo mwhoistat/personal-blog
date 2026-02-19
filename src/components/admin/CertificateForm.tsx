@@ -3,8 +3,8 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Upload, X, FileText, Loader2, Save, Image as ImageIcon } from 'lucide-react'
-import type { Certificate, CertificateCategory } from '@/lib/types'
+import { Upload, X, FileText, Loader2, Save, Image as ImageIcon, Calendar } from 'lucide-react'
+import type { Certificate, CertificateCategory, ArticleStatus } from '@/lib/types'
 
 interface CertificateFormProps {
     initialData?: Certificate
@@ -28,7 +28,9 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         credential_url: initialData?.credential_url || '',
         description: initialData?.description || '',
         category: initialData?.category || 'course',
-        is_featured: initialData?.is_featured || false
+        is_featured: initialData?.is_featured || false,
+        status: initialData?.status || 'draft',
+        published_at: initialData?.published_at ? new Date(initialData.published_at).toISOString().split('T')[0] : ''
     })
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,11 +95,16 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
                 return
             }
 
+            // Prepare payload
             const payload = {
                 ...formData,
                 image_url: imageUrl,
                 file_url: pdfUrl,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                // Ensure published_at is set if status is published and date is missing
+                published_at: formData.status === 'published' && !formData.published_at
+                    ? new Date().toISOString()
+                    : formData.published_at ? new Date(formData.published_at).toISOString() : null
             }
 
             if (initialData) {
@@ -125,7 +132,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 animate-fade-in">
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Left Column - Image Upload */}
                 <div className="md:col-span-1 space-y-4">
@@ -147,6 +154,32 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
                         )}
                     </div>
                     <p className="text-xs text-[var(--color-text-muted)]">Max 5MB. Formats: JPG, PNG, WEBP</p>
+
+                    <div className="pt-4 space-y-4 border-t border-[var(--color-border)]">
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold font-mono-tech">Status</label>
+                            <select
+                                value={formData.status}
+                                onChange={e => setFormData({ ...formData, status: e.target.value as ArticleStatus })}
+                                className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-2 focus:border-[var(--color-accent)] outline-none"
+                            >
+                                <option value="draft">Draft</option>
+                                <option value="published">Published</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </div>
+                        {formData.status === 'published' && (
+                            <div className="space-y-2 animate-fade-in">
+                                <label className="text-sm font-bold font-mono-tech">Published Date</label>
+                                <input
+                                    type="date"
+                                    value={formData.published_at}
+                                    onChange={e => setFormData({ ...formData, published_at: e.target.value })}
+                                    className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-2 focus:border-[var(--color-accent)] outline-none"
+                                />
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right Column - Details */}

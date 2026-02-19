@@ -18,6 +18,8 @@ export default function CertificatesPublicPage() {
             const { data } = await supabase
                 .from('certificates')
                 .select('*')
+                .eq('status', 'published')
+                .lte('published_at', new Date().toISOString())
                 .order('is_featured', { ascending: false })
                 .order('issue_date', { ascending: false })
 

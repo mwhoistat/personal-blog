@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, Search, Edit3, Trash2, Eye, FileText, Calendar, Filter } from 'lucide-react'
 import type { Article } from '@/lib/types'
 import { redirect } from 'next/navigation'
+import DeleteButton from '@/components/admin/DeleteButton'
 
 export default async function AdminArticlesPage({
     searchParams,
@@ -116,11 +117,17 @@ export default async function AdminArticlesPage({
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${article.status === 'published' ? 'bg-green-500/10 text-green-500 border border-green-500/20' :
-                                                    article.status === 'draft' ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20' :
-                                                        'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${article.status === 'published'
+                                                    ? (article.published_at && new Date(article.published_at) > new Date()
+                                                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                                        : 'bg-green-500/10 text-green-500 border border-green-500/20')
+                                                    : article.status === 'draft'
+                                                        ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+                                                        : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
                                                 }`}>
-                                                {article.status}
+                                                {article.status === 'published' && article.published_at && new Date(article.published_at) > new Date()
+                                                    ? 'Scheduled'
+                                                    : article.status}
                                             </span>
                                         </td>
                                         <td className="p-4">
@@ -143,7 +150,7 @@ export default async function AdminArticlesPage({
                                                 >
                                                     <Edit3 size={16} />
                                                 </Link>
-                                                {/* Add Delete Button Logic Here (Server Action or Client Component for better UX, keeping simple for now) */}
+                                                <DeleteButton table="articles" id={article.id} title={article.title} />
                                             </div>
                                         </td>
                                     </tr>

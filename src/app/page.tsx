@@ -37,15 +37,18 @@ export default function Home() {
       const { data: articlesData } = await supabase
         .from('articles')
         .select('*')
-        .eq('published', true)
-        .order('created_at', { ascending: false })
+        .eq('status', 'published')
+        .lte('published_at', new Date().toISOString())
+        .order('published_at', { ascending: false })
         .limit(3)
 
       // Fetch 2 latest projects
       const { data: projectsData } = await supabase
         .from('projects')
         .select('*')
-        .order('created_at', { ascending: false })
+        .eq('status', 'published')
+        .lte('published_at', new Date().toISOString())
+        .order('published_at', { ascending: false })
         .limit(2)
 
       if (articlesData) setArticles(articlesData)

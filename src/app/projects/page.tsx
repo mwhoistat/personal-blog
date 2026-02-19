@@ -20,13 +20,19 @@ function ProjectsContent() {
             const { data } = await supabase
                 .from('projects')
                 .select('*')
-                .order('created_at', { ascending: false })
+                .eq('status', 'published')
+                .lte('published_at', new Date().toISOString())
+                .order('published_at', { ascending: false })
 
             if (data) setProjects(data)
             setLoading(false)
         }
         fetchProjects()
     }, [])
+
+    const filteredProjects = filter === 'all'
+        ? projects
+        : projects.filter(p => p.tags?.some(tag => tag.toLowerCase().includes(filter.toLowerCase())) || p.slug.includes(filter))
 
     return (
         <div className="max-w-7xl mx-auto px-6 py-24">
@@ -65,7 +71,7 @@ function ProjectsContent() {
                 {loading ? (
                     Array.from({ length: 6 }).map((_, i) => <ProjectCardSkeleton key={i} />)
                 ) : (
-                    projects.map((project) => (
+                    filteredProjects.map((project) => (
                         <CyberCard
                             key={project.id}
                             title={project.title}

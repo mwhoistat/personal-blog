@@ -57,35 +57,27 @@ function WriteArticleContent() {
         loadArticle()
     }, [articleId, supabase])
 
-    // Auto-Save Logic
+    // Auto-Save Logic (Drafts only or silent updates)
     const saveDraft = useCallback(async (manual = false) => {
         if (!title && !content) return
 
-        // Optimistic UI: If updating, show "Saved" immediately
-        const isUpdate = !!currentIdRef.current
-        if (isUpdate) {
-            setLastSaved(new Date())
-            setSaving(true) // Just determines the icon state (Syncing...)
-        } else {
-            setSaving(true)
-        }
-
+        setSaving(true)
         try {
             const slug = slugify(title) || 'untitled-draft'
             const payload = {
                 title: title || 'Untitled',
-                slug: currentIdRef.current ? undefined : slug, // Keep slug stable on update
+                // Auto-update slug while in draft, otherwise keep existing
+                slug: status === 'draft' ? slug : undefined,
                 content,
                 cover_image: coverImage || null,
                 category: category || 'Uncategorized',
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+                // Do NOT change status here, keep current.
                 status: status,
                 updated_at: new Date().toISOString()
             }
 
             let result
-
-            // Perform request (awaited but UI already updated for update case)
             if (currentIdRef.current) {
                 result = await supabase
                     .from('articles')
@@ -108,25 +100,69 @@ function WriteArticleContent() {
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                // Update URL for new articles
                 if (!articleId) {
                     window.history.replaceState(null, '', `/admin/write/article?id=${result.data.id}`)
                 }
             }
 
-            // Confirm save (for create case or detailed sync status)
-            if (!isUpdate) setLastSaved(new Date())
-
-            if (manual) toast.success('Disimpan')
+            setLastSaved(new Date())
+            if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
             console.error(error)
             toast.error('Gagal menyimpan: ' + error.message)
-            // Rollback optimistic state if needed? 
-            // For now, simpler to just let the user know it failed.
         } finally {
             setSaving(false)
         }
     }, [title, content, coverImage, tags, category, status, articleId, supabase])
+
+    // Publish Workflow
+    const handlePublish = async () => {
+        if (!title || !content) {
+            toast.error('Judul dan konten harus diisi')
+            return
+        }
+
+        if (!confirm('Apakah saya yakin ingin mempublish artikel ini?')) return
+
+        setSaving(true)
+        try {
+            const payload = {
+                title,
+                content,
+                cover_image: coverImage || null,
+                category: category || 'Uncategorized',
+                tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+                status: 'published' as ArticleStatus,
+                published_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            }
+
+            // We assume ID exists because auto-save runs first usually, but let's handle new too
+            let result
+            if (currentIdRef.current) {
+                result = await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
+            } else {
+                // Should technically auto-save first or handle insert here, but let's just insert
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) throw new Error('No user')
+                result = await supabase.from('articles').insert({ ...payload, slug: slugify(title), author_id: user.id }).select().single()
+            }
+
+            if (result.error) throw result.error
+
+            setStatus('published')
+            toast.success('Artikel berhasil dipublish! 🚀')
+
+            // Redirect to dashboard after short delay
+            setTimeout(() => {
+                router.push('/admin/dashboard')
+            }, 1000)
+
+        } catch (error: any) {
+            toast.error('Gagal publish: ' + error.message)
+            setSaving(false)
+        }
+    }
 
     // Debounced Autosave
     useEffect(() => {
@@ -167,18 +203,14 @@ function WriteArticleContent() {
                 <div className="flex items-center gap-3">
                     {/* Publish Action */}
                     <button
-                        onClick={async () => {
-                            if (confirm('Publish article now?')) {
-                                setStatus('published')
-                                setTimeout(() => saveDraft(true), 100)
-                            }
-                        }}
+                        onClick={handlePublish}
+                        disabled={saving}
                         className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
-                            ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)] cursor-default'
+                            ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
-                            }`}
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                        {status === 'published' ? 'Published' : 'Publish'}
+                        {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
 
                     <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">

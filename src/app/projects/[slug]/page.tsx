@@ -4,6 +4,7 @@ import MarkdownRenderer from '@/components/MarkdownRenderer'
 import { ArrowLeft, ExternalLink, Github, Terminal } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import ViewCounter from '@/components/ViewCounter'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,7 @@ export default async function ProjectPage({ params }: { params: { slug: string }
         .from('projects')
         .select('*')
         .eq('slug', params.slug)
+        .eq('status', 'published')
         .single()
 
     if (!project) {
@@ -25,6 +27,7 @@ export default async function ProjectPage({ params }: { params: { slug: string }
 
     return (
         <div className="min-h-screen pb-20">
+            <ViewCounter slug={project.slug} table="projects" />
             {/* Header */}
             <div className="pt-32 pb-12 px-6 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                 <div className="max-w-5xl mx-auto">
