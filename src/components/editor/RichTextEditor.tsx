@@ -102,7 +102,7 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
 
                     // If the sanitized HTML is empty or just text, fall back to plain text parser
                     if (cleanHtml.trim().length > 0 && cleanHtml !== text) {
-                        editor.commands.insertContent(cleanHtml)
+                        editor?.commands.insertContent(cleanHtml)
                         return true
                     }
                 }
@@ -133,7 +133,7 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
                         return `<p>${safeText}</p>`
                     }).join('')
 
-                    editor.commands.insertContent(htmlContent)
+                    editor?.commands.insertContent(htmlContent)
                     return true
                 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
 
-export default function WriteArticlePage() {
+function WriteArticleContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const articleId = searchParams.get('id')
@@ -161,8 +161,8 @@ export default function WriteArticlePage() {
                             }
                         }}
                         className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
-                                ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)] cursor-default'
-                                : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
+                            ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)] cursor-default'
+                            : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
                             }`}
                     >
                         {status === 'published' ? 'Published' : 'Publish'}
@@ -217,5 +217,13 @@ export default function WriteArticlePage() {
                 />
             </main>
         </div>
+    )
+}
+
+export default function WriteArticlePage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>}>
+            <WriteArticleContent />
+        </Suspense>
     )
 }

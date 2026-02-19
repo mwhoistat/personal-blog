@@ -22,7 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             .eq('status', 'published')
             .order('updated_at', { ascending: false })
 
-        const articleRoutes: MetadataRoute.Sitemap = (articles || []).map((a) => ({
+        const articleRoutes: MetadataRoute.Sitemap = (articles || []).map((a: { slug: string; updated_at: string }) => ({
             url: `${baseUrl}/articles/${a.slug}`,
             lastModified: new Date(a.updated_at),
             changeFrequency: 'weekly' as const,
@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             .select('slug, updated_at')
             .order('updated_at', { ascending: false })
 
-        const projectRoutes: MetadataRoute.Sitemap = (projects || []).map((p) => ({
+        const projectRoutes: MetadataRoute.Sitemap = (projects || []).map((p: { slug: string; updated_at: string }) => ({
             url: `${baseUrl}/projects/${p.slug}`,
             lastModified: new Date(p.updated_at),
             changeFrequency: 'monthly' as const,
