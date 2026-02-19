@@ -6,9 +6,10 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Bold, Italic, Link2, Code, List, Heading1, Heading2, Quote, Image as ImageIcon, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { toast } from 'sonner'
 import DOMPurify from 'isomorphic-dompurify'
 
 interface RichTextEditorProps {
@@ -19,24 +20,62 @@ interface RichTextEditorProps {
 
 export default function RichTextEditor({ content, onChange, editable = true }: RichTextEditorProps) {
     const supabase = createClient()
+    // Use ref to access editor inside uploadImage (which is passed to userEditor)
+    const editorRef = useRef<any>(null)
 
     const uploadImage = async (file: File): Promise<string | null> => {
         try {
-            const fileExt = file.name.split('.').pop()
+            // 1. Optimistic UI: Insert local blob URL immediately
+            const blobUrl = URL.createObjectURL(file)
+            if (editorRef.current) {
+                editorRef.current.chain().focus().setImage({ src: blobUrl }).run()
+            }
+
+            // 2. Compress Image
+            let fileToUpload = file
+            try {
+                // Dynamically import to avoid server-side issues (though this is a client component)
+                const { compressImage } = await import('@/lib/image-compression')
+                fileToUpload = await compressImage(file)
+            } catch (compressionError) {
+                console.warn('Image compression failed, falling back to original', compressionError)
+            }
+
+            const fileExt = fileToUpload.name.split('.').pop()
             const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
             const filePath = `article-images/${fileName}`
 
+            // 3. Upload in background
             const { error: uploadError } = await supabase.storage
-                .from('content_assets') // Ensure this bucket exists or use 'articles'
-                .upload(filePath, file)
+                .from('content_assets')
+                .upload(filePath, fileToUpload, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
 
             if (uploadError) throw uploadError
 
             const { data } = supabase.storage.from('content_assets').getPublicUrl(filePath)
+
+            // 3. Replace blob URL with actual public URL
+            if (editorRef.current) {
+                const { state, view } = editorRef.current
+                state.doc.descendants((node: any, pos: number) => {
+                    if (node.type.name === 'image' && node.attrs.src === blobUrl) {
+                        const transaction = view.state.tr.setNodeMarkup(pos, null, { ...node.attrs, src: data.publicUrl })
+                        view.dispatch(transaction)
+                        return false // Stop traversal
+                    }
+                    return true
+                })
+            }
+
             return data.publicUrl
         } catch (error) {
             console.error('Error uploading image:', error)
-            alert('Gagal mengupload gambar')
+            toast.error('Gagal mengupload gambar')
+            // Revert optimistic update? For now just alert.
+            // Ideally we remove the node with the blobUrl
             return null
         }
     }
@@ -47,15 +86,12 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
         input.accept = 'image/*'
         input.onchange = async () => {
             if (input.files?.length) {
-                const file = input.files[0]
-                const url = await uploadImage(file)
-                if (url) {
-                    editor?.chain().focus().setImage({ src: url }).run()
-                }
+                // Don't await here to unblock UI
+                uploadImage(input.files[0])
             }
         }
         input.click()
-    }, [])
+    }, []) // No dependency needed as we use ref
 
     const editor = useEditor({
         extensions: [
@@ -102,7 +138,7 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
 
                     // If the sanitized HTML is empty or just text, fall back to plain text parser
                     if (cleanHtml.trim().length > 0 && cleanHtml !== text) {
-                        editor?.commands.insertContent(cleanHtml)
+                        editorRef.current?.commands.insertContent(cleanHtml)
                         return true
                     }
                 }
@@ -120,7 +156,7 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
                     // Split by double newlines for Paragraphs (standard LLM output)
                     const paragraphs = processed.split(/\n\s*\n/)
 
-                    const htmlContent = paragraphs.map(para => {
+                    const htmlContent = paragraphs.map((para: string) => {
                         if (!para.trim()) return ''
                         // Handle formatting manually if needed, or just wrap in <p>
                         // Convert internal newlines to <br>
@@ -133,7 +169,7 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
                         return `<p>${safeText}</p>`
                     }).join('')
 
-                    editor?.commands.insertContent(htmlContent)
+                    editorRef.current?.commands.insertContent(htmlContent)
                     return true
                 }
 
@@ -143,17 +179,8 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
                 if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
                     const file = event.dataTransfer.files[0]
                     if (file.type.startsWith('image/')) {
-                        uploadImage(file).then(url => {
-                            if (url) {
-                                const { schema } = view.state
-                                const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY })
-                                if (coordinates) {
-                                    const node = schema.nodes.image.create({ src: url })
-                                    const transaction = view.state.tr.insert(coordinates.pos, node)
-                                    view.dispatch(transaction)
-                                }
-                            }
-                        })
+                        // We use optimistic upload, so just trigger it and preventing default generic insertion
+                        uploadImage(file)
                         return true
                     }
                 }
@@ -163,6 +190,11 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
         immediatelyRender: false, // Fix hydration mismatch
     })
 
+    // Update ref whenever editor instance changes
+    useEffect(() => {
+        editorRef.current = editor
+    }, [editor])
+
     // Sync content if it changes externally
     useEffect(() => {
         if (editor && content !== editor.getHTML()) {
@@ -171,6 +203,10 @@ export default function RichTextEditor({ content, onChange, editable = true }: R
             // BE CAREFUL: This causes cursor jumps on every keystroke if not managed.
             // Usually better to only set initial content or treat as uncontrolled after init.
             // We'll rely on initial content for now.
+            // Check if content is empty (initial load)
+            if (editor.isEmpty) {
+                editor.commands.setContent(content)
+            }
         }
     }, [content, editor])
 

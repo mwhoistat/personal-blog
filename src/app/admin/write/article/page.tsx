@@ -61,22 +61,31 @@ function WriteArticleContent() {
     const saveDraft = useCallback(async (manual = false) => {
         if (!title && !content) return
 
-        setSaving(true)
+        // Optimistic UI: If updating, show "Saved" immediately
+        const isUpdate = !!currentIdRef.current
+        if (isUpdate) {
+            setLastSaved(new Date())
+            setSaving(true) // Just determines the icon state (Syncing...)
+        } else {
+            setSaving(true)
+        }
+
         try {
             const slug = slugify(title) || 'untitled-draft'
             const payload = {
                 title: title || 'Untitled',
-                slug: currentIdRef.current ? undefined : slug, // Don't change slug on update unless explicit? Better keep slug stable.
-                // Actually, for draft, slug isn't critical until publish.
+                slug: currentIdRef.current ? undefined : slug, // Keep slug stable on update
                 content,
                 cover_image: coverImage || null,
                 category: category || 'Uncategorized',
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-                status: status, // Keep current status
+                status: status,
                 updated_at: new Date().toISOString()
             }
 
             let result
+
+            // Perform request (awaited but UI already updated for update case)
             if (currentIdRef.current) {
                 result = await supabase
                     .from('articles')
@@ -99,17 +108,21 @@ function WriteArticleContent() {
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                // Update URL without reload if it was new
+                // Update URL for new articles
                 if (!articleId) {
                     window.history.replaceState(null, '', `/admin/write/article?id=${result.data.id}`)
                 }
             }
 
-            setLastSaved(new Date())
+            // Confirm save (for create case or detailed sync status)
+            if (!isUpdate) setLastSaved(new Date())
+
             if (manual) toast.success('Disimpan')
         } catch (error: any) {
             console.error(error)
             toast.error('Gagal menyimpan: ' + error.message)
+            // Rollback optimistic state if needed? 
+            // For now, simpler to just let the user know it failed.
         } finally {
             setSaving(false)
         }

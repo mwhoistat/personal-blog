@@ -18,11 +18,11 @@ function ArticlesContent() {
             const supabase = createClient()
             const { data } = await supabase
                 .from('articles')
-                .select('*')
-                .eq('published', true)
+                .select('id, title, slug, excerpt, created_at, cover_image, tags, status, author_id')
+                .eq('status', 'published')
                 .order('created_at', { ascending: false })
 
-            if (data) setArticles(data)
+            if (data) setArticles(data as unknown as Article[])
             setLoading(false)
         }
         fetchArticles()
