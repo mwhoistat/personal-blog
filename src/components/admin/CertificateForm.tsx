@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Upload, X, FileText, Loader2, Save, Image as ImageIcon } from 'lucide-react'
-import type { Certificate } from '@/lib/types'
+import type { Certificate, CertificateCategory } from '@/lib/types'
 
 interface CertificateFormProps {
     initialData?: Certificate
@@ -189,7 +189,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
                             <label className="text-sm font-bold font-mono-tech">Category</label>
                             <select
                                 value={formData.category}
-                                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                onChange={e => setFormData({ ...formData, category: e.target.value as CertificateCategory })}
                                 className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded p-2 focus:border-[var(--color-accent)] outline-none"
                             >
                                 <option value="course">Course</option>
