@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
+import FloatingLinkToolbar from '@/components/admin/FloatingLinkToolbar'
 import { logActivity } from '@/lib/activity'
 import type { Article } from '@/lib/types'
 
@@ -179,7 +180,12 @@ export default function EditArticlePage() {
                 </div>
 
                 {/* Markdown Editor */}
-                <div>
+                <div className="relative">
+                    <FloatingLinkToolbar
+                        textareaRef={{ current: document.querySelector('#md-editor') as HTMLTextAreaElement }}
+                        onInsertLink={(url) => insertMarkdown('[', `](${url})`)}
+                    />
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <label style={{ ...labelStyle, marginBottom: 0 }}>Konten (Markdown)</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
