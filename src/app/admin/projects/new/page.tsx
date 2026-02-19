@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
+import { logActivity } from '@/lib/activity'
 import { ArrowLeft, Save, Eye, EyeOff, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
@@ -41,6 +42,7 @@ export default function NewProjectPage() {
         })
         if (!error) {
             showToast('success', 'Proyek berhasil disimpan!')
+            logActivity('create_project', title)
             setTimeout(() => router.push('/admin/projects'), 1000)
         } else {
             showToast('error', error.message)

@@ -1,213 +1,209 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { useTheme } from './ThemeProvider'
-import { useAuth } from './AuthProvider'
-import { Sun, Moon, Menu, X, Search, LogOut, LayoutDashboard } from 'lucide-react'
+import { Terminal, Menu, X, Wifi, ShieldCheck, Cpu } from 'lucide-react'
+import { useAuth } from '@/components/AuthProvider'
+import SearchOverlay from '@/components/SearchOverlay'
+
+const navLinks = [
+    { name: '~/home', href: '/' },
+    { name: '~/articles', href: '/articles' },
+    { name: '~/projects', href: '/projects' },
+    { name: '~/certificates', href: '/certificates' },
+    { name: '~/about', href: '/about' },
+    { name: '~/contact', href: '/contact' },
+]
 
 export default function Navbar() {
-    const { theme, toggleTheme } = useTheme()
-    const { user, signOut } = useAuth()
     const pathname = usePathname()
-    const [mobileOpen, setMobileOpen] = useState(false)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { user } = useAuth()
+    const [scrolled, setScrolled] = useState(false)
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [searchOpen, setSearchOpen] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
+    const [mounted, setMounted] = useState(false)
 
-    const navLinks = [
-        { href: '/', label: 'Beranda' },
-        { href: '/articles', label: 'Artikel' },
-        { href: '/projects', label: 'Proyek' },
-        { href: '/about', label: 'Tentang' },
-    ]
+    useEffect(() => {
+        setMounted(true)
+        const handleScroll = () => setScrolled(window.scrollY > 20)
+        window.addEventListener('scroll', handleScroll)
+        return () => window.removeEventListener('scroll', handleScroll)
+    }, [])
 
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (searchQuery.trim()) {
-            window.location.href = `/articles?q=${encodeURIComponent(searchQuery.trim())}`
-            setSearchOpen(false)
-            setSearchQuery('')
+    // Close mobile menu on Escape key
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMobileMenuOpen(false)
         }
-    }
+        if (mobileMenuOpen) {
+            window.addEventListener('keydown', handleEscape)
+        }
+        return () => window.removeEventListener('keydown', handleEscape)
+    }, [mobileMenuOpen])
 
-    const isActiveLink = (href: string) => {
-        if (href === '/') return pathname === '/'
-        return pathname.startsWith(href)
-    }
+    // Global Search Hotkey
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault()
+                setSearchOpen(true)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [])
+
+    if (!mounted) return null
 
     return (
-        <header
-            style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 50,
-                backdropFilter: 'blur(16px)',
-                backgroundColor: 'color-mix(in srgb, var(--color-bg) 85%, transparent)',
-                borderBottom: '1px solid var(--color-border)',
-                transition: 'all 0.3s ease',
-            }}
-        >
-            <nav
-                style={{
-                    maxWidth: '1200px',
-                    margin: '0 auto',
-                    padding: '0 1.5rem',
-                    height: '64px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                }}
+        <>
+            <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+            <header
+                className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
+                    ? 'glass-panel border-b border-[var(--color-border)] py-3'
+                    : 'bg-transparent border-b border-transparent py-5'
+                    }`}
             >
-                {/* Logo */}
-                <Link
-                    href="/"
-                    style={{
-                        fontSize: '1.25rem',
-                        fontWeight: 800,
-                        letterSpacing: '-0.03em',
-                        textDecoration: 'none',
-                    }}
-                    className="gradient-text-animated"
-                >
-                    Atha.
-                </Link>
+                <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+                    {/* Logo Area */}
+                    <Link href="/" className="group flex items-center gap-3 font-mono-tech text-lg font-bold hover:text-[var(--color-accent)] transition-colors">
+                        <div className="relative flex items-center justify-center w-8 h-8 rounded bg-[var(--color-bg-tertiary)] border border-[var(--color-border)] group-hover:border-[var(--color-accent)] transition-colors">
+                            <Terminal size={18} className="text-[var(--color-accent)]" />
+                        </div>
+                        <span className="tracking-tighter">
+                            <span className="text-[var(--color-accent)]">root</span>
+                            <span className="text-[var(--color-text-muted)]">@</span>
+                            <span>atha</span>
+                            <span className="text-[var(--color-text-muted)]">:</span>
+                            <span className="text-[var(--color-cyan)]">~</span>
+                            <span className="animate-pulse text-[var(--color-accent)]">#</span>
+                        </span>
+                    </Link>
 
-                {/* Desktop Nav */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }} className="hidden-mobile">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            className={`nav-link ${isActiveLink(link.href) ? 'active' : ''}`}
-                            style={{
-                                padding: '0.5rem 0.875rem',
-                                borderRadius: '0.5rem',
-                                fontSize: '0.875rem',
-                                fontWeight: isActiveLink(link.href) ? 600 : 500,
-                                color: isActiveLink(link.href) ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                                transition: 'all 0.2s ease',
-                                textDecoration: 'none',
-                            }}
-                        >
-                            {link.label}
-                        </Link>
-                    ))}
-                </div>
+                    {/* Desktop Nav */}
+                    <nav className="hidden md:flex items-center gap-1">
+                        {navLinks.map((link) => {
+                            const isActive = pathname === link.href
+                            return (
+                                <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    className={`
+                                        relative px-4 py-2 font-mono-tech text-sm transition-all duration-200 rounded-md
+                                        ${isActive
+                                            ? 'text-[var(--color-bg)] bg-[var(--color-accent)] font-bold'
+                                            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-tertiary)]'
+                                        }
+                                    `}
+                                >
+                                    {link.name}
+                                </Link>
+                            )
+                        })}
+                    </nav>
 
-                {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    {/* Search */}
-                    {searchOpen ? (
-                        <form onSubmit={handleSearch} className="animate-scale-in" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <input
-                                type="text"
-                                placeholder="Cari..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                autoFocus
-                                style={{
-                                    padding: '0.375rem 0.75rem',
-                                    borderRadius: '0.5rem',
-                                    border: '1px solid var(--color-accent)',
-                                    backgroundColor: 'var(--color-bg-secondary)',
-                                    color: 'var(--color-text)',
-                                    fontSize: '0.875rem',
-                                    width: '180px',
-                                    outline: 'none',
-                                    boxShadow: '0 0 0 3px var(--color-accent-light)',
-                                }}
-                            />
-                            <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-                                style={{ background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: '0.375rem', display: 'flex' }}>
-                                <X size={18} />
-                            </button>
-                        </form>
-                    ) : (
+                    {/* Status / Command Center */}
+                    <div className="hidden md:flex items-center gap-4">
+                        {/* Search Trigger */}
                         <button
                             onClick={() => setSearchOpen(true)}
-                            style={{
-                                background: 'none', border: 'none',
-                                color: 'var(--color-text-secondary)', cursor: 'pointer',
-                                padding: '0.5rem', borderRadius: '0.5rem',
-                                transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
-                            }}
+                            className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono-tech text-[var(--color-text-muted)] bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded hover:border-[var(--color-accent)] hover:text-[var(--color-text)] transition-all group cursor-pointer"
                         >
-                            <Search size={18} />
+                            <span className="text-[var(--color-accent)]">⌘</span>
+                            <span>K</span>
                         </button>
-                    )}
 
-                    {/* Theme toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        style={{
-                            background: 'none', border: 'none',
-                            color: 'var(--color-text-secondary)', cursor: 'pointer',
-                            padding: '0.5rem', borderRadius: '0.5rem',
-                            transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
-                        }}
-                        aria-label="Toggle theme"
-                    >
-                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
+                        <div className="h-6 w-px bg-[var(--color-border)]"></div>
 
-                    {/* Mobile menu toggle */}
+                        {/* System Status */}
+                        <div className="flex items-center gap-2 text-xs font-mono-tech text-[var(--color-accent)] bg-[var(--color-accent)]/5 px-3 py-1.5 rounded border border-[var(--color-accent)]/20 shadow-[0_0_10px_rgba(0,255,157,0.1)]">
+                            <Wifi size={12} className="animate-pulse" />
+                            <span>NET_ONLINE</span>
+                        </div>
+                    </div>
+
+                    {/* Mobile Menu Toggle */}
                     <button
-                        onClick={() => setMobileOpen(!mobileOpen)}
-                        style={{
-                            background: 'none', border: 'none',
-                            color: 'var(--color-text-secondary)', cursor: 'pointer',
-                            padding: '0.5rem', display: 'none',
-                        }}
-                        className="show-mobile"
+                        className="md:hidden p-2 text-[var(--color-text)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-tertiary)] rounded border border-transparent hover:border-[var(--color-border)] transition-all"
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        aria-label="Toggle navigation menu"
                     >
-                        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
-            </nav>
 
-            {/* Mobile menu */}
-            {mobileOpen && (
+                {/* Mobile Menu Overlay */}
                 <div
-                    className="show-mobile-block animate-slide-down"
-                    style={{
-                        padding: '0.5rem 1.5rem 1rem',
-                        borderTop: '1px solid var(--color-border)',
-                        backgroundColor: 'var(--color-bg)',
-                    }}
+                    className={`md:hidden fixed inset-0 bg-[var(--color-bg)]/95 backdrop-blur-xl z-[60] transition-all duration-300 ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                        }`}
                 >
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => setMobileOpen(false)}
-                            style={{
-                                display: 'block',
-                                padding: '0.75rem 0',
-                                color: isActiveLink(link.href) ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                                textDecoration: 'none',
-                                fontSize: '0.9375rem',
-                                fontWeight: isActiveLink(link.href) ? 600 : 500,
-                                borderBottom: '1px solid var(--color-border)',
-                            }}
-                        >
-                            {link.label}
-                        </Link>
-                    ))}
-                </div>
-            )}
+                    <div className="flex flex-col h-full p-6">
+                        <div className="flex justify-between items-center mb-12 border-b border-[var(--color-border)] pb-6">
+                            <div className="font-mono-tech text-xl font-bold flex items-center gap-2">
+                                <Terminal size={20} className="text-[var(--color-accent)]" />
+                                <span>SYSTEM_MENU</span>
+                            </div>
+                            <button
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="p-2 rounded border border-[var(--color-border)] hover:border-[var(--color-danger)] text-[var(--color-text)] hover:text-[var(--color-danger)] transition-all"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
 
-            <style jsx global>{`
-        @media (min-width: 768px) {
-          .show-mobile { display: none !important; }
-          .show-mobile-block { display: none !important; }
-        }
-        @media (max-width: 767px) {
-          .hidden-mobile { display: none !important; }
-          .show-mobile { display: flex !important; }
-          .show-mobile-block { display: block !important; }
-        }
-      `}</style>
-        </header>
+                        <nav className="flex flex-col gap-2">
+                            {navLinks.map((link, i) => (
+                                <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    className={`
+                                        group flex items-center p-4 rounded-lg border border-transparent transition-all
+                                        ${pathname === link.href
+                                            ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)]/20 text-[var(--color-accent)]'
+                                            : 'hover:bg-[var(--color-bg-tertiary)] hover:border-[var(--color-border)] text-[var(--color-text-secondary)]'
+                                        }
+                                    `}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    <span className="font-mono-tech text-xs opacity-50 mr-4 w-6">0{i + 1}</span>
+                                    <span className="font-mono-tech text-lg font-bold group-hover:translate-x-1 transition-transform">{link.name}</span>
+                                </Link>
+                            ))}
+                        </nav>
+
+                        <div className="mt-auto">
+                            <div className="mb-6">
+                                <button
+                                    onClick={() => { setMobileMenuOpen(false); setSearchOpen(true); }}
+                                    className="w-full flex items-center justify-center gap-2 p-4 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)] transition-all"
+                                >
+                                    <span className="font-mono-tech">SEARCH_DATABASE</span>
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="bg-[var(--color-bg-secondary)] p-4 rounded border border-[var(--color-border)] flex flex-col items-center justify-center gap-2 text-[var(--color-accent)]">
+                                    <ShieldCheck size={24} />
+                                    <span className="text-xs font-mono-tech">SECURE</span>
+                                </div>
+                                <div className="bg-[var(--color-bg-secondary)] p-4 rounded border border-[var(--color-border)] flex flex-col items-center justify-center gap-2 text-[var(--color-cyan)]">
+                                    <Cpu size={24} />
+                                    <span className="text-xs font-mono-tech">OPTIMIZED</span>
+                                </div>
+                            </div>
+
+                            <div className="text-center border-t border-[var(--color-border)] pt-8">
+                                <p className="text-[var(--color-text-muted)] text-xs font-mono-tech uppercase tracking-widest">
+                                    System Version 2.0.4
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+        </>
     )
 }

@@ -1,138 +1,140 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/components/AuthProvider'
-import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Shield, Lock, Terminal, AlertTriangle } from 'lucide-react'
 
-export default function LoginPage() {
-    const router = useRouter()
-    const { signIn } = useAuth()
+import { z } from 'zod'
+import { login } from './actions'
+
+const loginSchema = z.object({
+    email: z.string().email("Invalid email address format"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+})
+
+function LoginContent() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [error, setError] = useState('')
+    const [error, setError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const searchParams = useSearchParams()
+    const redirectPath = searchParams.get('redirect') || '/admin'
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError('')
         setLoading(true)
+        setError(null)
 
-        // Strict Admin Check
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
-        if (adminEmail && email !== adminEmail) {
-            setError('Akses ditolak. Email tidak terdaftar sebagai admin.')
+        // Zod Validation
+        const result = loginSchema.safeParse({ email, password })
+        if (!result.success) {
+            const formatted = result.error.format()
+            const errorMsg = formatted.email?._errors[0] || formatted.password?._errors[0] || "Invalid input"
+            setError(errorMsg)
             setLoading(false)
             return
         }
 
-        const { error: err } = await signIn(email, password)
-        if (err) {
-            setError(err)
-            setLoading(false)
-        } else {
-            // Use full page reload instead of client-side navigation
-            // to ensure auth cookies are properly sent to middleware
-            window.location.href = '/admin'
-        }
-    }
+        const formData = new FormData()
+        formData.append('email', email)
+        formData.append('password', password)
+        formData.append('redirectTo', redirectPath)
 
-    const inputStyle = {
-        width: '100%',
-        padding: '0.75rem 0.875rem 0.75rem 2.75rem',
-        borderRadius: '0.5rem',
-        border: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-bg-secondary)',
-        color: 'var(--color-text)',
-        fontSize: '0.9375rem',
-        outline: 'none',
-        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+        const response = await login(formData)
+
+        if (response?.error) {
+            setError(response.error)
+            setLoading(false)
+        }
+        // If success, server action redirects.
     }
 
     return (
-        <div style={{
-            maxWidth: '420px',
-            margin: '4rem auto',
-            padding: '0 1.5rem',
-        }}>
-            <div style={{
-                padding: '2rem',
-                borderRadius: '1rem',
-                border: '1px solid var(--color-border)',
-                backgroundColor: 'var(--color-bg-secondary)',
-            }} className="animate-fade-in">
-                <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                    <div style={{
-                        width: '56px', height: '56px', borderRadius: '0.75rem',
-                        background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        margin: '0 auto 1rem',
-                    }}>
-                        <LogIn size={24} style={{ color: 'white' }} />
-                    </div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.375rem' }}>Selamat Datang</h1>
-                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Login ke akun Anda</p>
+        <div className="min-h-screen flex items-center justify-center px-6 relative overflow-hidden bg-[var(--color-bg)]">
+            {/* Background Decor */}
+            <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none"></div>
+
+            <div className="max-w-md w-full relative z-10">
+                <div className="text-center mb-8">
+                    <Shield size={48} className="mx-auto text-[var(--color-accent)] mb-4 animate-pulse" />
+                    <h1 className="font-mono-tech text-2xl font-bold tracking-tight">SECURE_ENTRY_POINT</h1>
+                    <p className="text-[var(--color-text-secondary)] text-sm mt-2">Identify yourself to proceed.</p>
                 </div>
 
-                {error && (
-                    <div style={{
-                        padding: '0.75rem',
-                        borderRadius: '0.5rem',
-                        backgroundColor: 'rgba(239,68,68,0.1)',
-                        color: 'var(--color-danger)',
-                        fontSize: '0.8125rem',
-                        marginBottom: '1rem',
-                        border: '1px solid rgba(239,68,68,0.2)',
-                    }}>
-                        {error}
-                    </div>
-                )}
+                <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg p-8 shadow-2xl relative overflow-hidden">
+                    {/* Top Status Bar */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-cyan)]"></div>
 
-                <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text-secondary)' }}>
-                            Email
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <Mail size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" required style={inputStyle}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)' }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
-                            />
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        {error && (
+                            <div className="bg-[var(--color-danger)]/10 border border-[var(--color-danger)]/20 text-[var(--color-danger)] px-4 py-3 rounded text-sm flex items-center gap-2">
+                                <AlertTriangle size={16} />
+                                <span>{error}</span>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-mono-tech text-[var(--color-text-muted)] mb-2 uppercase">User Identifier</label>
+                            <div className="relative">
+                                <Terminal size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-10 py-2.5 text-sm focus:outline-none focus:border-[var(--color-accent)] transition-colors text-[var(--color-text)] font-mono-tech placeholder:[var(--color-text-muted)]"
+                                    placeholder="admin@atha.dev"
+                                    required
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.375rem', color: 'var(--color-text-secondary)' }}>
-                            Password
-                        </label>
-                        <div style={{ position: 'relative' }}>
-                            <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={inputStyle}
-                                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)' }}
-                                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none' }}
-                            />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: 0 }}>
-                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
+                        <div>
+                            <label className="block text-xs font-mono-tech text-[var(--color-text-muted)] mb-2 uppercase">Access Key</label>
+                            <div className="relative">
+                                <Lock size={16} className="absolute left-3 top-3 text-[var(--color-text-muted)]" />
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] rounded px-10 py-2.5 text-sm focus:outline-none focus:border-[var(--color-accent)] transition-colors text-[var(--color-text)] font-mono-tech"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <button type="submit" disabled={loading} style={{
-                        width: '100%', padding: '0.75rem',
-                        borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.9375rem',
-                        color: 'white', background: loading ? 'var(--color-text-muted)' : 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                        border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.2s ease',
-                    }}>
-                        {loading ? 'Loading...' : 'Login'}
-                    </button>
-                </form>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-[var(--color-accent)] text-[var(--color-bg)] font-bold py-3 rounded hover:bg-[var(--color-accent-light)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-[var(--color-bg)] border-t-transparent rounded-full animate-spin"></span>
+                                    AUTHENTICATING...
+                                </span>
+                            ) : (
+                                <>
+                                    ESTABLISH_SESSION <span className="font-mono-tech">{'>'}</span>
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
 
+                <p className="text-center text-xs text-[var(--color-text-muted)] mt-8 font-mono-tech">
+                    Restricted Area. Unauthorized access is prohibited. <br />
+                    System IP logged.
+                </p>
             </div>
         </div>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[var(--color-bg)]"></div>}>
+            <LoginContent />
+        </Suspense>
     )
 }

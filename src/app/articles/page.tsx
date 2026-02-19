@@ -1,119 +1,85 @@
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import ArticleCard from '@/components/ArticleCard'
-import SearchBar from '@/components/SearchBar'
+import CyberCard from '@/components/CyberCard'
 import { ArticleCardSkeleton } from '@/components/Skeleton'
-import { BookOpen } from 'lucide-react'
+import { Terminal, Search } from 'lucide-react'
 import type { Article } from '@/lib/types'
-
-const categories = ['Semua', 'Tutorial', 'Programming', 'Design', 'Backend', 'DevOps']
 
 function ArticlesContent() {
     const searchParams = useSearchParams()
     const [articles, setArticles] = useState<Article[]>([])
-    const [filtered, setFiltered] = useState<Article[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeCategory, setActiveCategory] = useState('Semua')
-    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
-
-    const fetchArticles = useCallback(async () => {
-        const supabase = createClient()
-        try {
-            const { data } = await supabase
-                .from('articles').select('*').eq('published', true)
-                .order('created_at', { ascending: false })
-            setArticles(data || [])
-        } catch {
-            setArticles([])
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => { fetchArticles() }, [fetchArticles])
 
     useEffect(() => {
-        let result = articles
-        if (activeCategory !== 'Semua') {
-            result = result.filter((a) => a.category === activeCategory)
-        }
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase()
-            result = result.filter((a) =>
-                a.title.toLowerCase().includes(q) ||
-                a.tags?.some((t) => t.toLowerCase().includes(q)) ||
-                a.excerpt.toLowerCase().includes(q)
-            )
-        }
-        setFiltered(result)
-    }, [articles, activeCategory, searchQuery])
+        const fetchArticles = async () => {
+            const supabase = createClient()
+            const { data } = await supabase
+                .from('articles')
+                .select('*')
+                .eq('published', true)
+                .order('created_at', { ascending: false })
 
-    const handleSearch = useCallback((query: string) => {
-        setSearchQuery(query)
+            if (data) setArticles(data)
+            setLoading(false)
+        }
+        fetchArticles()
     }, [])
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <div className="max-w-7xl mx-auto px-6 py-24">
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }} className="animate-fade-in">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <BookOpen size={24} style={{ color: 'var(--color-accent)' }} />
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Artikel</h1>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+                <div>
+                    <div className="inline-flex items-center gap-2 mb-4 text-[var(--color-accent)] font-mono-tech text-sm">
+                        <Terminal size={14} />
+                        <span>root@atha:~/articles# cat *</span>
+                    </div>
+                    <h1 className="text-4xl font-bold mb-4">Security Logs</h1>
+                    <p className="text-[var(--color-text-secondary)] max-w-xl">
+                        Technical write-ups, vulnerability disclosures, and tutorials.
+                    </p>
                 </div>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem' }}>
-                    Tulisan tentang programming, desain, dan teknologi terbaru.
-                </p>
-            </div>
 
-            {/* Search & Filter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }} className="animate-fade-in animate-fade-in-delay-1">
-                <SearchBar placeholder="Cari artikel..." onSearch={handleSearch} defaultValue={searchQuery} />
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {categories.map((cat) => (
-                        <button
-                            key={cat}
-                            onClick={() => setActiveCategory(cat)}
-                            style={{
-                                padding: '0.375rem 0.875rem',
-                                borderRadius: '9999px',
-                                fontSize: '0.8125rem',
-                                fontWeight: 600,
-                                border: 'none',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                background: activeCategory === cat
-                                    ? 'linear-gradient(135deg, var(--color-accent), #a855f7)'
-                                    : 'var(--color-bg-tertiary)',
-                                color: activeCategory === cat ? 'white' : 'var(--color-text-secondary)',
-                            }}
-                        >
-                            {cat}
-                        </button>
-                    ))}
+                {/* Search Input */}
+                <div className="relative w-full md:w-64">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search size={16} className="text-[var(--color-text-muted)]" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="grep 'keyword'..."
+                        className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-sm rounded-md py-2 pl-10 pr-4 text-[var(--color-text)] focus:outline-none focus:border-[var(--color-accent)] font-mono-tech placeholder:[var(--color-text-muted)] transition-colors"
+                    />
                 </div>
             </div>
 
             {/* Grid */}
-            {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                    {Array.from({ length: 6 }).map((_, i) => <ArticleCardSkeleton key={i} />)}
-                </div>
-            ) : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
-                    <BookOpen size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
-                    <p style={{ fontSize: '1.125rem', fontWeight: 600 }}>Tidak ada artikel ditemukan</p>
-                    <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Belum ada artikel yang dipublish.</p>
-                </div>
-            ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                    {filtered.map((article, i) => (
-                        <div key={article.id} className={`animate-fade-in animate-fade-in-delay-${(i % 3) + 1}`}>
-                            <ArticleCard article={article} />
-                        </div>
-                    ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => <ArticleCardSkeleton key={i} />)
+                ) : (
+                    articles.map((article) => (
+                        <CyberCard
+                            key={article.id}
+                            title={article.title}
+                            excerpt={article.content.substring(0, 100) + '...'}
+                            slug={article.slug}
+                            type="article"
+                            date={article.created_at}
+                            tags={JSON.parse(JSON.stringify(article.tags || []))}
+                            image={article.cover_image || undefined}
+                        />
+                    ))
+                )}
+            </div>
+
+            {!loading && articles.length === 0 && (
+                <div className="text-center py-20 border border-dashed border-[var(--color-border)] rounded-lg">
+                    <Terminal size={48} className="mx-auto text-[var(--color-text-muted)] mb-4" />
+                    <p className="text-[var(--color-text-secondary)] font-mono-tech">No logs found matching query.</p>
                 </div>
             )}
         </div>
@@ -122,13 +88,7 @@ function ArticlesContent() {
 
 export default function ArticlesPage() {
     return (
-        <Suspense fallback={
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-                    {Array.from({ length: 6 }).map((_, i) => <ArticleCardSkeleton key={i} />)}
-                </div>
-            </div>
-        }>
+        <Suspense fallback={<div className="min-h-screen"></div>}>
             <ArticlesContent />
         </Suspense>
     )

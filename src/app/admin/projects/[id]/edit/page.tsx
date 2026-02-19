@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { ArrowLeft, Save, Eye, EyeOff, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
+import { logActivity } from '@/lib/activity'
 import type { Project } from '@/lib/types'
 
 export default function EditProjectPage() {
@@ -57,6 +58,7 @@ export default function EditProjectPage() {
         }).eq('id', params.id)
         if (!error) {
             showToast('success', 'Proyek berhasil diupdate!')
+            logActivity('update_project', title)
             setTimeout(() => router.push('/admin/projects'), 1000)
         } else {
             showToast('error', error.message)

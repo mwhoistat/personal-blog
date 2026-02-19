@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Save, Github, Linkedin, Twitter, Instagram, Youtube, Mail, Loader2, Lock, Eye, EyeOff, Shield, Share2, CheckCircle, AlertCircle } from 'lucide-react'
+import { logActivity } from '@/lib/activity'
+import { Save, Github, Linkedin, Twitter, Instagram, Youtube, Mail, Loader2, Lock, Eye, EyeOff, Shield, Share2, CheckCircle, AlertCircle, Globe } from 'lucide-react'
 
 interface SocialLink {
     key: string
@@ -21,8 +22,20 @@ const defaultLinks: Omit<SocialLink, 'value'>[] = [
     { key: 'social_email', label: 'Email', icon: Mail, placeholder: 'nama@email.com' },
 ]
 
+const generalFields = [
+    { key: 'site_title', label: 'Site Title', placeholder: 'Nama Blog Anda' },
+    { key: 'site_tagline', label: 'Tagline', placeholder: 'Deskripsi singkat blog' },
+    { key: 'meta_description', label: 'Meta Description (SEO)', placeholder: 'Deskripsi untuk mesin pencari' },
+    { key: 'og_image', label: 'Default Open Graph Image URL', placeholder: 'https://example.com/og-image.jpg' },
+    { key: 'ga_id', label: 'Google Analytics ID (opsional)', placeholder: 'G-XXXXXXXXXX' },
+]
+
 export default function SettingsPage() {
-    const [activeTab, setActiveTab] = useState<'social' | 'security'>('social')
+    const [activeTab, setActiveTab] = useState<'general' | 'social' | 'security'>('general')
+
+    // General state
+    const [generalSettings, setGeneralSettings] = useState<Record<string, string>>({})
+    const [savingGeneral, setSavingGeneral] = useState(false)
 
     // Social media state
     const [links, setLinks] = useState<SocialLink[]>(
@@ -51,16 +64,20 @@ export default function SettingsPage() {
         const fetchSettings = async () => {
             const supabase = createClient()
             try {
-                const { data } = await supabase
-                    .from('site_settings')
-                    .select('key, value')
-                    .in('key', defaultLinks.map(l => l.key))
-
+                const { data } = await supabase.from('site_settings').select('key, value')
                 if (data) {
+                    // Social
                     setLinks(prev => prev.map(link => {
                         const found = data.find(d => d.key === link.key)
                         return found ? { ...link, value: found.value || '' } : link
                     }))
+                    // General
+                    const gen: Record<string, string> = {}
+                    generalFields.forEach(f => {
+                        const found = data.find(d => d.key === f.key)
+                        gen[f.key] = found?.value || ''
+                    })
+                    setGeneralSettings(gen)
                 }
             } catch {
                 // Table might not exist yet
@@ -73,6 +90,38 @@ export default function SettingsPage() {
 
     const handleChange = (key: string, value: string) => {
         setLinks(prev => prev.map(l => l.key === key ? { ...l, value } : l))
+    }
+
+    const handleGeneralChange = (key: string, value: string) => {
+        setGeneralSettings(prev => ({ ...prev, [key]: value }))
+    }
+
+    const handleGeneralSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setSavingGeneral(true)
+        const supabase = createClient()
+
+        try {
+            const promises = Object.entries(generalSettings).map(([key, value]) =>
+                supabase.from('site_settings').upsert(
+                    { key, value: value.trim(), updated_at: new Date().toISOString() },
+                    { onConflict: 'key' }
+                )
+            )
+            const results = await Promise.all(promises)
+            const hasError = results.some(r => r.error)
+
+            if (hasError) {
+                showToast('error', 'Gagal menyimpan pengaturan')
+            } else {
+                showToast('success', 'Pengaturan umum berhasil disimpan!')
+                logActivity('update_settings', 'General Settings')
+            }
+        } catch {
+            showToast('error', 'Terjadi kesalahan')
+        } finally {
+            setSavingGeneral(false)
+        }
     }
 
     const handleSocialSubmit = async (e: React.FormEvent) => {
@@ -91,10 +140,10 @@ export default function SettingsPage() {
             const hasError = results.some(r => r.error)
 
             if (hasError) {
-                const err = results.find(r => r.error)?.error
-                showToast('error', err?.message || 'Gagal menyimpan pengaturan')
+                showToast('error', 'Gagal menyimpan pengaturan')
             } else {
                 showToast('success', 'Pengaturan sosial media berhasil disimpan!')
+                logActivity('update_settings', 'Social Media')
             }
         } catch {
             showToast('error', 'Terjadi kesalahan')
@@ -105,64 +154,29 @@ export default function SettingsPage() {
 
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
-        // Validation
-        if (!currentPassword) {
-            showToast('error', 'Masukkan password saat ini')
-            return
-        }
-        if (newPassword.length < 8) {
-            showToast('error', 'Password baru minimal 8 karakter')
-            return
-        }
-        if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-            showToast('error', 'Password harus kombinasi huruf dan angka')
-            return
-        }
-        if (newPassword !== confirmPassword) {
-            showToast('error', 'Konfirmasi password tidak cocok')
-            return
-        }
-        if (newPassword === currentPassword) {
-            showToast('error', 'Password baru harus berbeda dari password saat ini')
-            return
-        }
+        if (!currentPassword) { showToast('error', 'Masukkan password saat ini'); return }
+        if (newPassword.length < 8) { showToast('error', 'Password baru minimal 8 karakter'); return }
+        if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) { showToast('error', 'Password harus kombinasi huruf dan angka'); return }
+        if (newPassword !== confirmPassword) { showToast('error', 'Konfirmasi password tidak cocok'); return }
+        if (newPassword === currentPassword) { showToast('error', 'Password baru harus berbeda dari password saat ini'); return }
 
         setChangingPassword(true)
         const supabase = createClient()
 
         try {
-            // First verify current password by attempting sign in
             const { data: { user } } = await supabase.auth.getUser()
-            if (!user?.email) {
-                showToast('error', 'Sesi tidak valid. Silakan login ulang.')
-                setChangingPassword(false)
-                return
-            }
+            if (!user?.email) { showToast('error', 'Sesi tidak valid. Silakan login ulang.'); setChangingPassword(false); return }
 
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: user.email,
-                password: currentPassword,
-            })
+            const { error: signInError } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+            if (signInError) { showToast('error', 'Password saat ini salah'); setChangingPassword(false); return }
 
-            if (signInError) {
-                showToast('error', 'Password saat ini salah')
-                setChangingPassword(false)
-                return
-            }
-
-            // Update password
-            const { error: updateError } = await supabase.auth.updateUser({
-                password: newPassword,
-            })
-
+            const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
             if (updateError) {
                 showToast('error', updateError.message || 'Gagal mengupdate password')
             } else {
                 showToast('success', 'Password berhasil diubah!')
-                setCurrentPassword('')
-                setNewPassword('')
-                setConfirmPassword('')
+                setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+                logActivity('change_password', 'Password Changed')
             }
         } catch {
             showToast('error', 'Terjadi kesalahan saat mengubah password')
@@ -171,8 +185,7 @@ export default function SettingsPage() {
         }
     }
 
-    // Password strength indicator
-    const getPasswordStrength = (pw: string): { label: string; color: string; width: string } => {
+    const getPasswordStrength = (pw: string) => {
         if (!pw) return { label: '', color: 'transparent', width: '0%' }
         let score = 0
         if (pw.length >= 8) score++
@@ -180,7 +193,6 @@ export default function SettingsPage() {
         if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
         if (/[0-9]/.test(pw)) score++
         if (/[^a-zA-Z0-9]/.test(pw)) score++
-
         if (score <= 1) return { label: 'Lemah', color: '#ef4444', width: '20%' }
         if (score <= 2) return { label: 'Cukup', color: '#f59e0b', width: '40%' }
         if (score <= 3) return { label: 'Baik', color: '#3b82f6', width: '60%' }
@@ -198,25 +210,32 @@ export default function SettingsPage() {
         transition: 'border-color 0.25s ease, box-shadow 0.25s ease',
     }
 
-    const passwordInputStyle: React.CSSProperties = {
+    const simpleInputStyle: React.CSSProperties = {
         ...inputStyle,
-        paddingRight: '2.75rem',
+        paddingLeft: '0.875rem',
     }
 
+    const passwordInputStyle: React.CSSProperties = { ...inputStyle, paddingRight: '2.75rem' }
+
     const tabStyle = (isActive: boolean): React.CSSProperties => ({
-        padding: '0.625rem 1.25rem',
-        borderRadius: '0.5rem',
-        fontSize: '0.875rem',
-        fontWeight: isActive ? 600 : 500,
+        padding: '0.625rem 1rem',
+        borderRadius: '0.5rem', fontSize: '0.8125rem', fontWeight: isActive ? 600 : 500,
         color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
         backgroundColor: isActive ? 'var(--color-accent-light)' : 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        transition: 'all 0.25s ease',
+        border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center',
+        gap: '0.375rem', transition: 'all 0.25s ease', flex: 1, justifyContent: 'center',
     })
+
+    const focusHandlers = {
+        onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            e.currentTarget.style.borderColor = 'var(--color-accent)'
+            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)'
+        },
+        onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+            e.currentTarget.style.borderColor = 'var(--color-border)'
+            e.currentTarget.style.boxShadow = 'none'
+        },
+    }
 
     if (loading) {
         return (
@@ -246,23 +265,88 @@ export default function SettingsPage() {
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem', letterSpacing: '-0.025em' }}>Pengaturan</h1>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                    Kelola sosial media dan keamanan akun Anda.
+                    Kelola pengaturan umum, sosial media, dan keamanan akun.
                 </p>
             </div>
 
             {/* Tabs */}
             <div style={{
-                display: 'flex', gap: '0.375rem', marginBottom: '1.5rem',
+                display: 'flex', gap: '0.25rem', marginBottom: '1.5rem',
                 padding: '0.25rem', backgroundColor: 'var(--color-bg-secondary)',
                 borderRadius: '0.625rem', border: '1px solid var(--color-border)',
             }}>
+                <button onClick={() => setActiveTab('general')} style={tabStyle(activeTab === 'general')}>
+                    <Globe size={15} /> Umum
+                </button>
                 <button onClick={() => setActiveTab('social')} style={tabStyle(activeTab === 'social')}>
-                    <Share2 size={16} /> Sosial Media
+                    <Share2 size={15} /> Sosial
                 </button>
                 <button onClick={() => setActiveTab('security')} style={tabStyle(activeTab === 'security')}>
-                    <Shield size={16} /> Keamanan
+                    <Shield size={15} /> Keamanan
                 </button>
             </div>
+
+            {/* General Tab */}
+            {activeTab === 'general' && (
+                <form onSubmit={handleGeneralSubmit} className="animate-fade-in">
+                    <div style={{
+                        border: '1px solid var(--color-border)', borderRadius: '0.75rem',
+                        overflow: 'hidden', marginBottom: '1.5rem',
+                    }}>
+                        <div style={{
+                            padding: '1rem 1.25rem', backgroundColor: 'var(--color-bg-secondary)',
+                            borderBottom: '1px solid var(--color-border)',
+                        }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Pengaturan Umum</h2>
+                            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
+                                Konfigurasi dasar website dan SEO.
+                            </p>
+                        </div>
+
+                        <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {generalFields.map(({ key, label, placeholder }) => (
+                                <div key={key}>
+                                    <label style={{
+                                        display: 'block', fontSize: '0.8125rem', fontWeight: 600,
+                                        marginBottom: '0.375rem', color: 'var(--color-text-secondary)',
+                                    }}>
+                                        {label}
+                                    </label>
+                                    {key === 'meta_description' ? (
+                                        <textarea
+                                            value={generalSettings[key] || ''}
+                                            onChange={(e) => handleGeneralChange(key, e.target.value)}
+                                            placeholder={placeholder}
+                                            rows={3}
+                                            style={{ ...simpleInputStyle, resize: 'vertical', minHeight: '80px' }}
+                                            {...focusHandlers}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={generalSettings[key] || ''}
+                                            onChange={(e) => handleGeneralChange(key, e.target.value)}
+                                            placeholder={placeholder}
+                                            style={simpleInputStyle}
+                                            {...focusHandlers}
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button type="submit" disabled={savingGeneral} className="btn-interactive" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 700, fontSize: '0.9375rem',
+                        color: 'white', background: savingGeneral ? 'var(--color-text-muted)' : 'linear-gradient(135deg, var(--color-accent), #a855f7)',
+                        border: 'none', cursor: savingGeneral ? 'not-allowed' : 'pointer',
+                    }}>
+                        {savingGeneral ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {savingGeneral ? 'Menyimpan...' : 'Simpan Pengaturan'}
+                    </button>
+                </form>
+            )}
 
             {/* Social Media Tab */}
             {activeTab === 'social' && (
@@ -301,14 +385,7 @@ export default function SettingsPage() {
                                             onChange={(e) => handleChange(key, e.target.value)}
                                             placeholder={placeholder}
                                             style={inputStyle}
-                                            onFocus={(e) => {
-                                                e.currentTarget.style.borderColor = 'var(--color-accent)'
-                                                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)'
-                                            }}
-                                            onBlur={(e) => {
-                                                e.currentTarget.style.borderColor = 'var(--color-border)'
-                                                e.currentTarget.style.boxShadow = 'none'
-                                            }}
+                                            {...focusHandlers}
                                         />
                                     </div>
                                 </div>
@@ -353,22 +430,8 @@ export default function SettingsPage() {
                                 </label>
                                 <div style={{ position: 'relative' }}>
                                     <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                                    <input
-                                        type={showCurrent ? 'text' : 'password'}
-                                        value={currentPassword}
-                                        onChange={(e) => setCurrentPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        required
-                                        style={passwordInputStyle}
-                                        onFocus={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-accent)'
-                                            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)'
-                                        }}
-                                        onBlur={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-border)'
-                                            e.currentTarget.style.boxShadow = 'none'
-                                        }}
-                                    />
+                                    <input type={showCurrent ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                                        placeholder="••••••••" required style={passwordInputStyle} {...focusHandlers} />
                                     <button type="button" onClick={() => setShowCurrent(!showCurrent)}
                                         style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: 0 }}>
                                         {showCurrent ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -376,7 +439,6 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            {/* Divider */}
                             <div style={{ borderTop: '1px solid var(--color-border)' }} />
 
                             {/* New Password */}
@@ -386,40 +448,17 @@ export default function SettingsPage() {
                                 </label>
                                 <div style={{ position: 'relative' }}>
                                     <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                                    <input
-                                        type={showNew ? 'text' : 'password'}
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Minimal 8 karakter"
-                                        required
-                                        minLength={8}
-                                        style={passwordInputStyle}
-                                        onFocus={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-accent)'
-                                            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)'
-                                        }}
-                                        onBlur={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-border)'
-                                            e.currentTarget.style.boxShadow = 'none'
-                                        }}
-                                    />
+                                    <input type={showNew ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                                        placeholder="Minimal 8 karakter" required minLength={8} style={passwordInputStyle} {...focusHandlers} />
                                     <button type="button" onClick={() => setShowNew(!showNew)}
                                         style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: 0 }}>
                                         {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                                     </button>
                                 </div>
-                                {/* Strength indicator */}
                                 {newPassword && (
                                     <div style={{ marginTop: '0.5rem' }}>
-                                        <div style={{
-                                            width: '100%', height: '4px', backgroundColor: 'var(--color-bg-tertiary)',
-                                            borderRadius: '2px', overflow: 'hidden',
-                                        }}>
-                                            <div style={{
-                                                width: strength.width, height: '100%',
-                                                backgroundColor: strength.color, borderRadius: '2px',
-                                                transition: 'width 0.3s ease, background-color 0.3s ease',
-                                            }} />
+                                        <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: '2px', overflow: 'hidden' }}>
+                                            <div style={{ width: strength.width, height: '100%', backgroundColor: strength.color, borderRadius: '2px', transition: 'width 0.3s ease, background-color 0.3s ease' }} />
                                         </div>
                                         <p style={{ fontSize: '0.75rem', color: strength.color, marginTop: '0.25rem', fontWeight: 500 }}>
                                             Kekuatan: {strength.label}
@@ -435,22 +474,8 @@ export default function SettingsPage() {
                                 </label>
                                 <div style={{ position: 'relative' }}>
                                     <Lock size={16} style={{ position: 'absolute', left: '0.875rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-                                    <input
-                                        type={showConfirm ? 'text' : 'password'}
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        placeholder="Ulangi password baru"
-                                        required
-                                        style={passwordInputStyle}
-                                        onFocus={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-accent)'
-                                            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-light)'
-                                        }}
-                                        onBlur={(e) => {
-                                            e.currentTarget.style.borderColor = 'var(--color-border)'
-                                            e.currentTarget.style.boxShadow = 'none'
-                                        }}
-                                    />
+                                    <input type={showConfirm ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                        placeholder="Ulangi password baru" required style={passwordInputStyle} {...focusHandlers} />
                                     <button type="button" onClick={() => setShowConfirm(!showConfirm)}
                                         style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', padding: 0 }}>
                                         {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}

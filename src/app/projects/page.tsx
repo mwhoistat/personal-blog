@@ -1,91 +1,98 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import ProjectCard from '@/components/ProjectCard'
-import SearchBar from '@/components/SearchBar'
+import CyberCard from '@/components/CyberCard'
 import { ProjectCardSkeleton } from '@/components/Skeleton'
-import { Code } from 'lucide-react'
+import { Terminal, Filter, Search } from 'lucide-react'
 import type { Project } from '@/lib/types'
 
-export default function ProjectsPage() {
+function ProjectsContent() {
+    const searchParams = useSearchParams()
     const [projects, setProjects] = useState<Project[]>([])
-    const [filtered, setFiltered] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
-    const [searchQuery, setSearchQuery] = useState('')
-
-    const fetchProjects = useCallback(async () => {
-        const supabase = createClient()
-        try {
-            const { data } = await supabase
-                .from('projects').select('*')
-                .order('featured', { ascending: false })
-                .order('created_at', { ascending: false })
-            setProjects(data || [])
-        } catch {
-            setProjects([])
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => { fetchProjects() }, [fetchProjects])
+    const [filter, setFilter] = useState('all')
 
     useEffect(() => {
-        if (!searchQuery) {
-            setFiltered(projects)
-        } else {
-            const q = searchQuery.toLowerCase()
-            setFiltered(projects.filter((p) =>
-                p.title.toLowerCase().includes(q) ||
-                p.tags?.some((t) => t.toLowerCase().includes(q)) ||
-                p.description.toLowerCase().includes(q)
-            ))
-        }
-    }, [projects, searchQuery])
+        const fetchProjects = async () => {
+            const supabase = createClient()
+            const { data } = await supabase
+                .from('projects')
+                .select('*')
+                .order('created_at', { ascending: false })
 
-    const handleSearch = useCallback((query: string) => {
-        setSearchQuery(query)
+            if (data) setProjects(data)
+            setLoading(false)
+        }
+        fetchProjects()
     }, [])
 
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+        <div className="max-w-7xl mx-auto px-6 py-24">
             {/* Header */}
-            <div style={{ marginBottom: '2rem' }} className="animate-fade-in">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <Code size={24} style={{ color: 'var(--color-accent)' }} />
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Proyek</h1>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+                <div>
+                    <div className="inline-flex items-center gap-2 mb-4 text-[var(--color-cyan)] font-mono-tech text-sm">
+                        <Terminal size={14} />
+                        <span>root@atha:~/projects# ls -la</span>
+                    </div>
+                    <h1 className="text-4xl font-bold mb-4">Projects</h1>
+                    <p className="text-[var(--color-text-secondary)] max-w-xl">
+                        A collection of open source tools, scripts, and fullstack applications I've engineered.
+                    </p>
                 </div>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem' }}>
-                    Koleksi proyek programming dan desain yang telah saya kerjakan.
-                </p>
-            </div>
 
-            {/* Search */}
-            <div style={{ marginBottom: '2rem' }} className="animate-fade-in animate-fade-in-delay-1">
-                <SearchBar placeholder="Cari proyek..." onSearch={handleSearch} />
+                {/* Filter (Visual only for now, logic can be added/expanded) */}
+                <div className="flex items-center gap-2 bg-[var(--color-bg-secondary)] p-1 rounded-lg border border-[var(--color-border)]">
+                    {['all', 'scripts', 'web', 'infra'].map((f) => (
+                        <button
+                            key={f}
+                            onClick={() => setFilter(f)}
+                            className={`px-4 py-2 rounded-md text-xs font-mono-tech transition-colors ${filter === f
+                                ? 'bg-[var(--color-cyan)] text-[var(--color-bg)] font-bold'
+                                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                                }`}
+                        >
+                            {f.toUpperCase()}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Grid */}
-            {loading ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                    {Array.from({ length: 6 }).map((_, i) => <ProjectCardSkeleton key={i} />)}
-                </div>
-            ) : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--color-text-muted)' }}>
-                    <Code size={48} style={{ margin: '0 auto 1rem', opacity: 0.3 }} />
-                    <p style={{ fontSize: '1.125rem', fontWeight: 600 }}>Tidak ada proyek ditemukan</p>
-                    <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>Silakan tambahkan proyek baru di Admin Panel.</p>
-                </div>
-            ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                    {filtered.map((project, i) => (
-                        <div key={project.id} className={`animate-fade-in animate-fade-in-delay-${(i % 3) + 1}`}>
-                            <ProjectCard project={project} />
-                        </div>
-                    ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => <ProjectCardSkeleton key={i} />)
+                ) : (
+                    projects.map((project) => (
+                        <CyberCard
+                            key={project.id}
+                            title={project.title}
+                            excerpt={project.description}
+                            slug={project.slug}
+                            type="project"
+                            image={project.image_url || undefined}
+                            tags={project.tags}
+                        />
+                    ))
+                )}
+            </div>
+
+            {!loading && projects.length === 0 && (
+                <div className="text-center py-20 border border-dashed border-[var(--color-border)] rounded-lg">
+                    <Terminal size={48} className="mx-auto text-[var(--color-text-muted)] mb-4" />
+                    <p className="text-[var(--color-text-secondary)] font-mono-tech">No protocols found in this directory.</p>
                 </div>
             )}
         </div>
+    )
+}
+
+export default function ProjectsPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen"></div>}>
+            <ProjectsContent />
+        </Suspense>
     )
 }

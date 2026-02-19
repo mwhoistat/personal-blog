@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
+import { logActivity } from '@/lib/activity'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
@@ -68,6 +69,7 @@ export default function NewArticlePage() {
 
         if (!error) {
             showToast('success', 'Artikel berhasil disimpan!')
+            logActivity('create_article', title)
             setTimeout(() => router.push('/admin/articles'), 1000)
         } else {
             showToast('error', error.message)

@@ -1,251 +1,200 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Terminal, Shield, Cpu, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import ArticleCard from '@/components/ArticleCard'
-import ProjectCard from '@/components/ProjectCard'
-import { ArticleCardSkeleton, ProjectCardSkeleton } from '@/components/Skeleton'
-import { ArrowRight, Sparkles, Code, BookOpen } from 'lucide-react'
+import CyberCard from '@/components/CyberCard'
 import type { Article, Project } from '@/lib/types'
 
-export default function HomePage() {
+export default function Home() {
   const [articles, setArticles] = useState<Article[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchData = useCallback(async () => {
-    const supabase = createClient()
-    try {
-      const [articlesRes, projectsRes] = await Promise.all([
-        supabase.from('articles').select('*').eq('published', true).order('created_at', { ascending: false }).limit(4),
-        supabase.from('projects').select('*').order('featured', { ascending: false }).order('created_at', { ascending: false }).limit(3),
-      ])
-      setArticles(articlesRes.data || [])
-      setProjects(projectsRes.data || [])
-    } catch {
-      setArticles([])
-      setProjects([])
-    } finally {
-      setLoading(false)
-    }
+  // Typewriter effect state
+  const [text, setText] = useState('')
+  const fullText = "Cybersecurity Researcher & Network Engineer."
+
+  useEffect(() => {
+    let index = 0
+    const interval = setInterval(() => {
+      if (index <= fullText.length) {
+        setText(fullText.slice(0, index))
+        index++
+      } else {
+        clearInterval(interval)
+      }
+    }, 50)
+    return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient()
+
+      // Fetch 3 latest articles
+      const { data: articlesData } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      // Fetch 2 latest projects
+      const { data: projectsData } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(2)
+
+      if (articlesData) setArticles(articlesData)
+      if (projectsData) setProjects(projectsData)
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
 
   return (
-    <>
-      {/* Hero Section */}
-      <section style={{
-        position: 'relative',
-        overflow: 'hidden',
-        padding: '5rem 1.5rem 4rem',
-        textAlign: 'center',
-      }}>
-        {/* Gradient background blobs */}
-        <div style={{
-          position: 'absolute',
-          top: '-50%',
-          left: '-20%',
-          width: '600px',
-          height: '600px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: '-30%',
-          right: '-10%',
-          width: '500px',
-          height: '500px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }} className="animate-fade-in">
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            padding: '0.375rem 1rem',
-            borderRadius: '9999px',
-            backgroundColor: 'var(--color-accent-light)',
-            color: 'var(--color-accent)',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            marginBottom: '1.5rem',
-          }}>
-            <Sparkles size={14} />
-            Personal Blog & Portfolio
+    <div className="min-h-screen">
+      {/* HERO SECTION */}
+      <section className="relative pt-32 pb-20 px-6 min-h-[80vh] flex flex-col justify-center border-b border-[var(--color-border)] animate-fade-in-up">
+        <div className="max-w-5xl mx-auto w-full relative z-10">
+          <div className="inline-flex items-center gap-2 mb-6 px-3 py-1 rounded-full border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/10 text-[var(--color-accent)] text-xs font-mono-tech">
+            <span className="animate-pulse">●</span> SYSTEM_READY
           </div>
 
-          <h1 style={{
-            fontSize: 'clamp(2rem, 5vw, 3.5rem)',
-            fontWeight: 800,
-            lineHeight: 1.1,
-            marginBottom: '1.25rem',
-            letterSpacing: '-0.025em',
-          }}>
-            Hai, Saya{' '}
-            <span className="gradient-text-animated" style={{
-              fontSize: 'inherit',
-              fontWeight: 'inherit',
-            }}>
-              Atha
-            </span>
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
+            Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-cyan)]">Atha</span>.
           </h1>
 
-          <p style={{
-            fontSize: 'clamp(1rem, 2vw, 1.125rem)',
-            color: 'var(--color-text-secondary)',
-            lineHeight: 1.6,
-            maxWidth: '600px',
-            margin: '0 auto 2rem',
-          }}>
-            Siswa SMK TKJ yang antusias dengan <strong>Cybersecurity</strong>, <strong>Pentesting</strong>, dan Teknologi Jaringan. Sedang mengeksplorasi Web Development untuk membangun sistem yang aman.
+          <div className="font-mono-tech text-xl md:text-2xl text-[var(--color-text-secondary)] mb-8 h-8 flex items-center">
+            <span className="text-[var(--color-accent)] mr-2">{'>'}</span>
+            {text}
+            <span className="animate-pulse w-3 h-6 bg-[var(--color-text)] ml-1"></span>
+          </div>
+
+          <p className="max-w-xl text-[var(--color-text-secondary)] text-lg mb-10 leading-relaxed">
+            Specializing in penetration testing, network infrastructure, and secure fullstack development.
+            Building systems that are robust, scalable, and secure by design.
           </p>
 
-          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/articles" style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              color: 'white',
-              background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-              textDecoration: 'none',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
-            }}>
-              <BookOpen size={18} />
-              Baca Artikel
+          <div className="flex gap-4">
+            <Link href="/projects" className="group flex items-center gap-2 bg-[var(--color-text)] text-[var(--color-bg)] px-6 py-3 rounded-md font-bold hover:bg-[var(--color-accent)] transition-all">
+              View Protocols <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
             </Link>
-            <Link href="/projects" style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              backgroundColor: 'var(--color-bg-secondary)',
-              textDecoration: 'none',
-              transition: 'all 0.2s ease',
-            }}>
-              <Code size={18} />
-              Lihat Proyek
+            <Link href="/contact" className="px-6 py-3 rounded-md border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-all font-mono-tech text-sm flex items-center">
+              ./init_contact.sh
             </Link>
           </div>
         </div>
+
+        {/* Background Decoration */}
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-[var(--color-accent)]/5 to-transparent pointer-events-none"></div>
+        <div className="absolute bottom-10 right-10 opacity-20 hidden md:block">
+          <Shield size={300} strokeWidth={0.5} />
+        </div>
       </section>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' }}>
-        {/* Latest Articles */}
-        <section style={{ marginBottom: '4rem' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1.5rem',
-          }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Artikel Terbaru</h2>
-            <Link href="/articles" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              color: 'var(--color-accent)',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              transition: 'gap 0.2s ease',
-            }}>
-              Lihat Semua
-              <ArrowRight size={16} />
+      {/* QUICK STATS / SKILLS BAR */}
+      <section className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-wrap justify-center md:justify-between gap-6 md:gap-16">
+          {[
+            { label: 'NETWORK SECURITY', icon: Shield, val: 'SECURE' },
+            { label: 'PENETRATION TESTING', icon: Terminal, val: 'ACTIVE' },
+            { label: 'SYSTEM ARCHITECTURE', icon: Cpu, val: 'OPTIMIZED' }
+          ].map((skill, i) => (
+            <div key={i} className="flex items-center gap-4 group min-w-[200px] md:min-w-0">
+              <div className="p-3 rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-accent)] group-hover:bg-[var(--color-accent)] group-hover:text-[var(--color-bg)] transition-colors">
+                <skill.icon size={24} />
+              </div>
+              <div>
+                <h4 className="font-mono-tech text-xs text-[var(--color-text-muted)] tracking-wider mb-1">{skill.label}</h4>
+                <p className="font-bold text-sm tracking-widest">{skill.val}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* LATEST LOGS (ARTICLES) */}
+      <section className="py-24 px-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+              <span className="text-[var(--color-accent)]">01.</span> Latest Logs
+            </h2>
+            <p className="text-[var(--color-text-secondary)]">Recent security research and technical write-ups.</p>
+          </div>
+          <Link href="/articles" className="hidden md:flex items-center gap-2 text-[var(--color-accent)] font-mono-tech text-sm hover:underline">
+            VIEW_ALL_LOGS <ChevronRight size={14} />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-64 rounded-lg bg-[var(--color-bg-secondary)] animate-pulse border border-[var(--color-border)]"></div>
+            ))
+          ) : (
+            articles.map((article) => (
+              <CyberCard
+                key={article.id}
+                title={article.title}
+                excerpt={article.content.substring(0, 100) + '...'} // Simple extraction, real app should store excerpt
+                slug={article.slug}
+                type="article"
+                date={article.created_at}
+                tags={JSON.parse(JSON.stringify(article.tags || []))}
+                image={article.cover_image || undefined}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="mt-8 md:hidden">
+          <Link href="/articles" className="flex items-center justify-center w-full py-3 border border-[var(--color-border)] text-[var(--color-text-secondary)] font-mono-tech text-sm hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">
+            VIEW_ALL_LOGS
+          </Link>
+        </div>
+      </section>
+
+      {/* FEATURED PROTOCOLS (PROJECTS) */}
+      <section className="py-24 px-6 bg-[var(--color-bg-secondary)] border-y border-[var(--color-border)]">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                <span className="text-[var(--color-cyan)]">02.</span> Deployed Protocols
+              </h2>
+              <p className="text-[var(--color-text-secondary)]">Open source tools and infrastructure projects.</p>
+            </div>
+            <Link href="/projects" className="hidden md:flex items-center gap-2 text-[var(--color-cyan)] font-mono-tech text-sm hover:underline">
+              ACCESS_ALL_PROJECTS <ChevronRight size={14} />
             </Link>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '1.5rem',
-          }}>
-            {loading
-              ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className={`animate-fade-in animate-fade-in-delay-${i + 1}`}>
-                  <ArticleCardSkeleton />
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {loading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-64 rounded-lg bg-[var(--color-bg)] animate-pulse border border-[var(--color-border)]"></div>
               ))
-              : articles.length > 0 ? (
-                articles.map((article, i) => (
-                  <div key={article.id} className={`animate-fade-in animate-fade-in-delay-${i + 1}`}>
-                    <ArticleCard article={article} />
-                  </div>
-                ))
-              ) : (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                  Belum ada artikel terbaru.
-                </div>
-              )
-            }
-          </div>
-        </section>
-
-        {/* Featured Projects */}
-        <section style={{ marginBottom: '4rem' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1.5rem',
-          }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Proyek Unggulan</h2>
-            <Link href="/projects" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              color: 'var(--color-accent)',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}>
-              Lihat Semua
-              <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '1.5rem',
-          }}>
-            {loading
-              ? Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className={`animate-fade-in animate-fade-in-delay-${i + 1}`}>
-                  <ProjectCardSkeleton />
-                </div>
+            ) : (
+              projects.map((project) => (
+                <CyberCard
+                  key={project.id}
+                  title={project.title}
+                  excerpt={project.description}
+                  slug={project.slug}
+                  type="project"
+                  image={project.image_url || undefined}
+                  tags={project.tags}
+                />
               ))
-              : projects.length > 0 ? (
-                projects.map((project, i) => (
-                  <div key={project.id} className={`animate-fade-in animate-fade-in-delay-${i + 1}`}>
-                    <ProjectCard project={project} />
-                  </div>
-                ))
-              ) : (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
-                  Belum ada proyek unggulan.
-                </div>
-              )
-            }
+            )}
           </div>
-        </section>
-      </div>
-    </>
+        </div>
+      </section>
+    </div>
   )
 }

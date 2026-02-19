@@ -49,16 +49,36 @@ create table if not exists public.projects (
   updated_at timestamptz default now()
 );
 
+-- Site Settings table (key-value store)
+create table if not exists public.site_settings (
+  key text primary key,
+  value text default '',
+  updated_at timestamptz default now()
+);
+
+-- Activity Logs table
+create table if not exists public.activity_logs (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  target text not null default '',
+  details text,
+  created_at timestamptz default now()
+);
+
 -- Indexes
 create index if not exists idx_articles_slug on public.articles(slug);
 create index if not exists idx_articles_published on public.articles(published);
 create index if not exists idx_projects_slug on public.projects(slug);
 create index if not exists idx_projects_featured on public.projects(featured);
+create index if not exists idx_activity_logs_created on public.activity_logs(created_at desc);
 
 -- RLS Policies
 alter table public.profiles enable row level security;
 alter table public.articles enable row level security;
 alter table public.projects enable row level security;
+alter table public.site_settings enable row level security;
+alter table public.activity_logs enable row level security;
 
 -- Profiles: anyone can read, users can update own
 create policy "Profiles are viewable by everyone" on public.profiles for select using (true);
@@ -77,7 +97,19 @@ create policy "Admins can do everything with projects" on public.projects for al
   exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
 );
 
+-- Settings: anyone can read, admins can write
+create policy "Settings are viewable by everyone" on public.site_settings for select using (true);
+create policy "Admins can manage settings" on public.site_settings for all using (
+  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+);
 
+-- Activity Logs: only admins can read and write
+create policy "Admins can view activity logs" on public.activity_logs for select using (
+  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+);
+create policy "Admins can insert activity logs" on public.activity_logs for insert with check (
+  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+);
 
 -- Function to handle profile creation on signup
 create or replace function public.handle_new_user()
@@ -112,27 +144,13 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- =============================================
--- Site Settings table (key-value store)
--- =============================================
-create table if not exists public.site_settings (
-  key text primary key,
-  value text default '',
-  updated_at timestamptz default now()
-);
-
-alter table public.site_settings enable row level security;
-
--- Anyone can read settings (needed for footer/navbar)
-create policy "Settings are viewable by everyone" on public.site_settings for select using (true);
-
--- Only admins can insert/update/delete settings
-create policy "Admins can manage settings" on public.site_settings for all using (
-  exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
-);
-
--- Seed default social media keys (run once)
+-- Seed default settings keys (run once)
 insert into public.site_settings (key, value) values
+  ('site_title', ''),
+  ('site_tagline', ''),
+  ('meta_description', ''),
+  ('og_image', ''),
+  ('ga_id', ''),
   ('social_github', ''),
   ('social_linkedin', ''),
   ('social_twitter', ''),

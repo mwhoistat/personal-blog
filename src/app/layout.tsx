@@ -1,28 +1,37 @@
 import type { Metadata } from 'next'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/components/AuthProvider'
-import Navbar from '@/components/Navbar'
+import PublicLayoutWrapper from '@/components/PublicLayoutWrapper'
 import './globals.css'
+
+// Fonts configuration
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: {
-    default: 'Nurathallah - Cybersecurity & Network Enthusiast',
-    template: '%s | Nurathallah',
+    default: 'Atha. | Cybersecurity & Network Engineer',
+    template: '%s | Atha.',
   },
-  description: 'Blog personal Nurathallah Putra Pratama. Sharing tentang cybersecurity, pentesting, jaringan komputer, dan web development.',
-  keywords: ['cybersecurity', 'pentesting', 'tkj', 'networking', 'webdev', 'blog'],
+  description: 'Personal portfolio and blog of Nurathallah. Exploring cybersecurity, networking, and fullstack development.',
+  keywords: ['cybersecurity', 'networking', 'security engineer', 'pentesting', 'portfolio'],
   authors: [{ name: 'Nurathallah Putra Pratama' }],
   openGraph: {
     type: 'website',
     locale: 'id_ID',
-    siteName: 'Nurathallah Blog',
-    title: 'Nurathallah - Cybersecurity & Network Enthusiast',
-    description: 'Blog personal Nurathallah Putra Pratama seputar cybersecurity dan teknologi.',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Nurathallah - Cybersecurity & Network Enthusiast',
-    description: 'Blog personal Nurathallah Putra Pratama seputar cybersecurity dan teknologi.',
+    siteName: 'Atha. Security Portfolio',
+    title: 'Atha. | Cybersecurity Specialist',
+    description: 'Security research, network engineering, and code.',
   },
   robots: {
     index: true,
@@ -32,20 +41,18 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
-      <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen flex flex-col antialiased selection:bg-[var(--color-accent)] selection:text-black">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-[100] px-4 py-2 bg-[var(--color-accent)] text-black font-bold font-mono-tech rounded-md">
+          Skip to Content
+        </a>
         <ThemeProvider>
           <AuthProvider>
-            <Navbar />
-            <main style={{ flex: 1 }}>
-              {children}
-            </main>
-
+            <PublicLayoutWrapper>
+              <main id="main-content" className="flex-1">
+                {children}
+              </main>
+            </PublicLayoutWrapper>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -1,146 +1,118 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
-import { Github, Linkedin, Twitter, Instagram, Youtube, Mail, MapPin, GraduationCap, Shield, Code, Terminal } from 'lucide-react'
-
-const socialIcons: Record<string, React.ElementType> = {
-    social_github: Github,
-    social_linkedin: Linkedin,
-    social_twitter: Twitter,
-    social_instagram: Instagram,
-    social_youtube: Youtube,
-    social_email: Mail,
-}
-
-const socialLabels: Record<string, string> = {
-    social_github: 'GitHub',
-    social_linkedin: 'LinkedIn',
-    social_twitter: 'Twitter',
-    social_instagram: 'Instagram',
-    social_youtube: 'YouTube',
-    social_email: 'Email',
-}
+import { Terminal, Code, Cpu, Shield, Server, Globe } from 'lucide-react'
 
 export default function AboutPage() {
-    const [socials, setSocials] = useState<{ key: string; value: string }[]>([])
-
-    useEffect(() => {
-        const fetchSocials = async () => {
-            const supabase = createClient()
-            try {
-                const { data } = await supabase
-                    .from('site_settings')
-                    .select('key, value')
-                    .like('key', 'social_%')
-                if (data) setSocials(data.filter(d => d.value))
-            } catch {
-                // Table might not exist
-            }
-        }
-        fetchSocials()
-    }, [])
-
-    const skills = [
-        { icon: Shield, label: 'Cybersecurity', desc: 'Penetration Testing, Network Security, CTF' },
-        { icon: Terminal, label: 'Networking', desc: 'Cisco, MikroTik, TCP/IP, Subnetting' },
-        { icon: Code, label: 'Web Development', desc: 'Next.js, React, TypeScript, Supabase' },
-    ]
-
     return (
-        <div style={{ maxWidth: '720px', margin: '0 auto', padding: '3rem 1.5rem' }} className="animate-fade-in">
+        <div className="max-w-5xl mx-auto px-6 py-24">
             {/* Header */}
-            <div style={{ marginBottom: '3rem' }}>
-                <div style={{
-                    width: '80px', height: '80px', borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: '1.5rem', fontSize: '2rem', color: 'white', fontWeight: 800,
-                }}>
-                    A
+            <div className="mb-16">
+                <div className="inline-flex items-center gap-2 mb-4 text-[var(--color-accent)] font-mono-tech text-sm">
+                    <Terminal size={14} />
+                    <span>student@smk-tkj:~$ whoami</span>
                 </div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-                    Nurathallah Putra Pratama
-                </h1>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '1.0625rem', lineHeight: 1.6, marginBottom: '0.75rem' }}>
-                    Siswa SMK jurusan Teknik Komputer dan Jaringan yang antusias dengan dunia <strong>Cybersecurity</strong>, <strong>Pentesting</strong>, dan Teknologi Jaringan. Saat ini sedang mengeksplorasi Web Development untuk membangun sistem yang aman dan modern.
+                <h1 className="text-4xl md:text-5xl font-bold mb-6">About Me</h1>
+                <p className="text-xl text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
+                    11th Grade Network Engineering (TKJ) student exploring the world of cybersecurity and web development. Passionate about bug bounty hunting and understanding how networks operate.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-                    <MapPin size={14} />
-                    <span>Indonesia</span>
-                    <span style={{ margin: '0 0.25rem' }}>·</span>
-                    <GraduationCap size={14} />
-                    <span>SMK — TKJ</span>
+            </div>
+
+            {/* Terminal Bio */}
+            <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg overflow-hidden mb-16 shadow-2xl">
+                <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-tertiary)] border-b border-[var(--color-border)]">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <div className="ml-4 text-xs font-mono-tech text-[var(--color-text-muted)]">profile.json</div>
+                </div>
+                <div className="p-6 font-mono-tech text-sm md:text-base overflow-x-auto">
+                    <pre className="text-[var(--color-text-secondary)]">
+                        {`{
+  "name": "Nurathallah Putra Pratama",
+  "role": "Student & Bug Bounty Hunter",
+  "status": "Learning Mode",
+  "education": "SMK (11th Grade) - TKJ",
+  "started_coding": "2024",
+  "interests": [
+    "Bug Bounty Hunting",
+    "Network Engineering",
+    "Web Technologies",
+    "CTF Challenges"
+  ],
+  "contact": "contact@atha.dev" // Placeholder
+}`}
+                    </pre>
                 </div>
             </div>
 
-            {/* Skills */}
-            <div style={{ marginBottom: '3rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', letterSpacing: '-0.02em' }}>Keahlian</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {skills.map(({ icon: Icon, label, desc }) => (
-                        <div key={label} className="card-interactive" style={{
-                            display: 'flex', alignItems: 'flex-start', gap: '1rem',
-                            padding: '1rem 1.25rem', borderRadius: '0.75rem',
-                            border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
-                        }}>
-                            <div style={{
-                                width: '40px', height: '40px', borderRadius: '0.5rem', flexShrink: 0,
-                                background: 'var(--color-accent-light)', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', color: 'var(--color-accent)',
-                            }}>
-                                <Icon size={20} />
-                            </div>
-                            <div>
-                                <p style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.125rem' }}>{label}</p>
-                                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>{desc}</p>
-                            </div>
+            {/* Tech Stack / Skills Grid */}
+            <div className="mb-20">
+                <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
+                    <span className="text-[var(--color-cyan)]">01.</span> Current Focus
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Security */}
+                    <div className="p-6 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-accent)] transition-colors group">
+                        <Shield className="mb-4 text-[var(--color-accent)]" size={32} />
+                        <h3 className="font-bold mb-4 font-mono-tech">Cyber Security</h3>
+                        <p className="text-xs text-[var(--color-text-secondary)] mb-4">Focusing on Bug Bounty & Web Security</p>
+                        <ul className="space-y-2 text-[var(--color-text-secondary)] text-sm">
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-accent)]">Web Vulnerability Basics</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-accent)]">Bug Bounty Hunting</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-accent)]">Reconnaissance Tools</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-accent)]">Burp Suite Community</li>
+                        </ul>
+                    </div>
+
+                    {/* Infrastructure */}
+                    <div className="p-6 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-cyan)] transition-colors group">
+                        <Server className="mb-4 text-[var(--color-cyan)]" size={32} />
+                        <h3 className="font-bold mb-4 font-mono-tech">Networking (TKJ)</h3>
+                        <p className="text-xs text-[var(--color-text-secondary)] mb-4">Vocational High School Curriculum</p>
+                        <ul className="space-y-2 text-[var(--color-text-secondary)] text-sm">
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-cyan)]">Network Fundamentals</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-cyan)]">MikroTik Basics</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-cyan)]">Cisco Packet Tracer</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-cyan)]">Linux Administration</li>
+                        </ul>
+                    </div>
+
+                    {/* Development */}
+                    <div className="p-6 border border-[var(--color-border)] rounded-lg hover:border-[var(--color-text)] transition-colors group">
+                        <Code className="mb-4 text-[var(--color-text)]" size={32} />
+                        <h3 className="font-bold mb-4 font-mono-tech">Web Dev</h3>
+                        <p className="text-xs text-[var(--color-text-secondary)] mb-4">Building projects like this blog</p>
+                        <ul className="space-y-2 text-[var(--color-text-secondary)] text-sm">
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-text)]">HTML, CSS, JavaScript</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-text)]">Next.js (App Router)</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-text)]">Tailwind CSS</li>
+                            <li className="flex items-center gap-2 before:content-['>'] before:text-[var(--color-text)]">Supabase Integration</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {/* Timeline / Experience */}
+            <div>
+                <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
+                    <span className="text-[var(--color-warning)]">02.</span> System Log
+                </h2>
+                <div className="relative border-l border-[var(--color-border)] ml-3 space-y-12">
+                    {[
+                        { year: '2026', title: 'Running My Own Blog', company: 'Personal Project', desc: 'Developing and maintaining this cybersecurity portfolio using Next.js and Supabase.' },
+                        { year: '2024 - 2025', title: 'Started Learning Journey', company: 'SMK Grade 10', desc: 'Officially started learning Cyber Security, Networking, and Web Development. Enrolled in TKJ major.' },
+                    ].map((item, i) => (
+                        <div key={i} className="relative pl-8">
+                            <div className="absolute -left-[5px] top-2 w-2.5 h-2.5 rounded-full bg-[var(--color-border)] ring-4 ring-[var(--color-bg)]"></div>
+                            <span className="font-mono-tech text-xs text-[var(--color-accent)] mb-1 block">{item.year}</span>
+                            <h3 className="text-lg font-bold">{item.title}</h3>
+                            <p className="text-sm text-[var(--color-text-muted)] mb-2 font-mono-tech">@ {item.company}</p>
+                            <p className="text-[var(--color-text-secondary)]">{item.desc}</p>
                         </div>
                     ))}
                 </div>
             </div>
-
-            {/* Connect */}
-            {socials.length > 0 && (
-                <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', letterSpacing: '-0.02em' }}>Hubungi Saya</h2>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {socials.map(({ key, value }) => {
-                            const Icon = socialIcons[key]
-                            const label = socialLabels[key]
-                            if (!Icon) return null
-                            const href = key === 'social_email' ? `mailto:${value}` : value
-                            return (
-                                <a
-                                    key={key}
-                                    href={href}
-                                    target={key === 'social_email' ? undefined : '_blank'}
-                                    rel="noopener noreferrer"
-                                    style={{
-                                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                                        padding: '0.5rem 1rem', borderRadius: '0.5rem',
-                                        border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)',
-                                        color: 'var(--color-text-secondary)', textDecoration: 'none',
-                                        fontSize: '0.8125rem', fontWeight: 500,
-                                        transition: 'all 0.2s ease',
-                                    }}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--color-accent)'
-                                        e.currentTarget.style.color = 'var(--color-accent)'
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.borderColor = 'var(--color-border)'
-                                        e.currentTarget.style.color = 'var(--color-text-secondary)'
-                                    }}
-                                >
-                                    <Icon size={16} />
-                                    {label}
-                                </a>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

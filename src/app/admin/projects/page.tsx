@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { formatDate } from '@/lib/utils'
-import { Plus, Edit, Trash2, Search, FolderKanban } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, FolderKanban, Github } from 'lucide-react'
 import type { Project } from '@/lib/types'
 
 export default function AdminProjectsPage() {
@@ -42,6 +42,13 @@ export default function AdminProjectsPage() {
                     color: 'white', background: 'linear-gradient(135deg, var(--color-accent), #a855f7)', textDecoration: 'none',
                 }}>
                     <Plus size={16} /> Proyek Baru
+                </Link>
+                <Link href="/admin/projects/import" style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8125rem',
+                    color: 'var(--color-bg)', background: 'var(--color-text)', textDecoration: 'none',
+                }}>
+                    <Github size={16} /> Import from GitHub
                 </Link>
             </div>
 

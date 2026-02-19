@@ -39,13 +39,43 @@ export interface Project {
     view_count: number
     created_at: string
     updated_at: string
+    // GitHub Integration
+    github_repo_id?: number
+    is_github_imported?: boolean
+    stars?: number
+    forks?: number
+    language?: string
 }
 
-export interface Comment {
+export interface SiteSetting {
+    key: string
+    value: string
+    updated_at: string
+}
+
+export interface ActivityLog {
     id: string
-    article_id: string
     user_id: string
-    content: string
+    action: string
+    target: string
+    details: string | null
     created_at: string
     user?: Profile
+}
+export type CertificateCategory = 'course' | 'competition' | 'award' | 'bootcamp' | 'other'
+
+export interface Certificate {
+    id: string
+    title: string
+    issuer: string
+    issue_date: string
+    credential_id?: string | null
+    credential_url?: string | null
+    description?: string | null
+    image_url: string
+    file_url?: string | null
+    category: CertificateCategory
+    is_featured: boolean
+    created_at: string
+    updated_at: string
 }

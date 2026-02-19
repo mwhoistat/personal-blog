@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { ArrowLeft, Save, Eye, EyeOff, Bold, Italic, Heading, Link2, Code, List, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 import Link from 'next/link'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
+import { logActivity } from '@/lib/activity'
 import type { Article } from '@/lib/types'
 
 export default function EditArticlePage() {
@@ -83,6 +84,7 @@ export default function EditArticlePage() {
 
         if (!error) {
             showToast('success', 'Artikel berhasil diupdate!')
+            logActivity('update_article', title)
             setTimeout(() => router.push('/admin/articles'), 1000)
         } else {
             showToast('error', error.message)

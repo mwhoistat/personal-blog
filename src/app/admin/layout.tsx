@@ -1,191 +1,86 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { redirect } from 'next/navigation'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import AdminShell from '@/components/AdminShell'
+import { ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useAuth } from '@/components/AuthProvider'
-import { LayoutDashboard, FileText, FolderKanban, ArrowLeft, Menu, X, Settings, ShieldAlert } from 'lucide-react'
+import { signOut } from '../login/actions'
 
-const adminLinks = [
-    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admin/articles', label: 'Artikel', icon: FileText },
-    { href: '/admin/projects', label: 'Proyek', icon: FolderKanban },
-    { href: '/admin/settings', label: 'Pengaturan', icon: Settings },
-]
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+    const supabase = await createServerSupabaseClient()
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { user, loading } = useAuth()
-    const pathname = usePathname()
-    const router = useRouter()
-    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
 
-    useEffect(() => {
-        if (!loading) {
-            if (!user) {
-                router.push('/login')
-            }
-            // Removed automatic redirect for non-admin to show Access Denied screen instead
-        }
-    }, [user, loading, router])
-
-    // Prevent rendering while loading
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="animate-spin" style={{
-                    width: '32px', height: '32px',
-                    border: '3px solid var(--color-border)',
-                    borderTopColor: 'var(--color-accent)',
-                    borderRadius: '50%'
-                }} />
-            </div>
-        )
+    if (!user) {
+        redirect('/login')
     }
 
-    // Access Denied Screen
-    if (user && user.role !== 'admin') {
+    // Fetch Profile & Role Server-Side
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+    console.log('[AdminLayout] User ID:', user.id)
+    console.log('[AdminLayout] Query result (Profile):', profile)
+    console.log('[AdminLayout] Query Error:', error)
+
+    // Authorization Check
+    if (!profile || profile.role !== 'admin') {
+        console.warn(`[AdminLayout] Access Denied. User: ${user.email}, Role: ${profile?.role}`)
         return (
-            <div className="animate-fade-in" style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                height: '100vh', padding: '1.5rem', textAlign: 'center',
-                maxWidth: '500px', margin: '0 auto'
-            }}>
-                <div style={{
-                    marginBottom: '1.5rem', color: '#ef4444',
-                    background: 'rgba(239,68,68,0.1)', padding: '1rem', borderRadius: '50%'
-                }}>
-                    <ShieldAlert size={48} />
+            <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center max-w-lg mx-auto animate-fade-in">
+                <div className="mb-6 text-red-500 bg-red-500/10 p-4 rounded-full">
+                    <ShieldAlert size={64} />
                 </div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.75rem' }}>Akses Ditolak</h1>
-                <p style={{ marginBottom: '2rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                    Akun <strong>{user.username || 'ini'}</strong> tidak memiliki izin Admin.<br />
-                    Hanya pengguna dengan role 'admin' yang dapat mengakses halaman ini.
+                <h1 className="text-3xl font-bold mb-3">Access Denied</h1>
+                <p className="mb-8 text-[var(--color-text-secondary)] leading-relaxed">
+                    Account <strong>{user.email}</strong> is authenticated, but lacks
+                    <span className="font-mono text-red-500 bg-red-500/10 px-1 rounded mx-1">ADMIN</span>
+                    privileges.
                 </p>
 
-                <div style={{
-                    width: '100%', padding: '1rem',
-                    backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)',
-                    borderRadius: '0.75rem', marginBottom: '2rem', textAlign: 'left'
-                }}>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>
-                        Solusi (Untuk Developer):
+                <div className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-6 mb-8 text-left shadow-lg">
+                    <p className="text-xs font-bold uppercase text-[var(--color-text-muted)] mb-3 tracking-wider">
+                        Debug Information
                     </p>
-                    <p style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--color-text)' }}>
-                        Buka Supabase Table Editor &rarr; Table <code>profiles</code> &rarr; Cari user ini &rarr; Ubah column <code>role</code> menjadi <code>'admin'</code>.
-                    </p>
+                    <div className="font-mono text-xs space-y-2 text-[var(--color-text)]">
+                        <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                            <span>User ID:</span>
+                            <span className="opacity-70">{user.id}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                            <span>Email:</span>
+                            <span className="opacity-70">{user.email}</span>
+                        </div>
+                        <div className="flex justify-between pt-1">
+                            <span>Role (DB):</span>
+                            <span className={`font-bold ${!profile ? 'text-yellow-500' : 'text-red-500'}`}>
+                                {profile?.role ? `"${profile.role}"` : 'NULL / NOT FOUND'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <Link href="/" style={{
-                        padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600,
-                        backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text)',
-                        textDecoration: 'none', border: '1px solid var(--color-border)'
-                    }}>
-                        Kembali ke Blog
+                <div className="flex gap-4">
+                    <Link href="/" className="px-6 py-3 rounded-lg font-semibold bg-[var(--color-bg-secondary)] text-[var(--color-text)] border border-[var(--color-border)] hover:bg-[var(--color-border)] transition-colors">
+                        Back to Home
                     </Link>
+                    <form action={signOut}>
+                        <button className="px-6 py-3 rounded-lg font-semibold bg-[var(--color-accent)] text-white hover:opacity-90 transition-opacity">
+                            Switch Account
+                        </button>
+                    </form>
                 </div>
             </div>
         )
     }
 
-    // If not user (useEffect will redirect), render null to avoid flash
-    if (!user) return null
-
     return (
-        <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)' }}>
-            {/* Mobile sidebar toggle */}
-            <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                style={{
-                    position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 50,
-                    width: '48px', height: '48px', borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--color-accent), #a855f7)',
-                    color: 'white', border: 'none', cursor: 'pointer',
-                    display: 'none', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
-                }}
-                className="show-mobile-flex"
-            >
-                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
-
-            {/* Sidebar */}
-            <aside
-                style={{
-                    width: '240px',
-                    borderRight: '1px solid var(--color-border)',
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    padding: '1.5rem 0.75rem',
-                    position: 'sticky',
-                    top: '64px',
-                    height: 'calc(100vh - 64px)',
-                    overflowY: 'auto',
-                    flexShrink: 0,
-                    transition: 'transform 0.3s ease',
-                }}
-                className={sidebarOpen ? 'sidebar-mobile-open' : 'sidebar-desktop'}
-            >
-                <div style={{ marginBottom: '1.5rem', padding: '0 0.5rem' }}>
-                    <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Admin Panel</h2>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Kelola konten blog</p>
-                </div>
-
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    {adminLinks.map(({ href, label, icon: Icon }) => {
-                        const isActive = pathname === href
-                        return (
-                            <Link
-                                key={href}
-                                href={href}
-                                onClick={() => setSidebarOpen(false)}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.625rem',
-                                    padding: '0.625rem 0.75rem',
-                                    borderRadius: '0.5rem',
-                                    fontSize: '0.875rem',
-                                    fontWeight: isActive ? 600 : 500,
-                                    color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                                    backgroundColor: isActive ? 'var(--color-accent-light)' : 'transparent',
-                                    textDecoration: 'none',
-                                    transition: 'all 0.2s ease',
-                                }}
-                            >
-                                <Icon size={18} />
-                                {label}
-                            </Link>
-                        )
-                    })}
-                </nav>
-
-                <div style={{ marginTop: '2rem', padding: '0 0.5rem' }}>
-                    <Link href="/" style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        fontSize: '0.8125rem', color: 'var(--color-text-muted)', textDecoration: 'none',
-                    }}>
-                        <ArrowLeft size={14} /> Kembali ke Blog
-                    </Link>
-                </div>
-            </aside>
-
-            {/* Content */}
-            <div style={{ flex: 1, padding: '1.5rem', minWidth: 0 }}>
-                {children}
-            </div>
-
-            <style jsx global>{`
-        @media (min-width: 768px) {
-          .show-mobile-flex { display: none !important; }
-          .sidebar-desktop { display: block !important; }
-          .sidebar-mobile-open { display: block !important; }
-        }
-        @media (max-width: 767px) {
-          .show-mobile-flex { display: flex !important; }
-          .sidebar-desktop { display: none !important; position: fixed !important; top: 64px !important; left: 0 !important; z-index: 40 !important; height: calc(100vh - 64px) !important; }
-          .sidebar-mobile-open { display: block !important; position: fixed !important; top: 64px !important; left: 0 !important; z-index: 40 !important; height: calc(100vh - 64px) !important; }
-        }
-      `}</style>
-        </div>
+        <AdminShell userProfile={profile}>
+            {children}
+        </AdminShell>
     )
 }
