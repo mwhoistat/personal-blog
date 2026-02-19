@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const { data: articles } = await supabase
             .from('articles')
             .select('slug, updated_at')
-            .eq('published', true)
+            .eq('status', 'published')
             .order('updated_at', { ascending: false })
 
         const articleRoutes: MetadataRoute.Sitemap = (articles || []).map((a) => ({
