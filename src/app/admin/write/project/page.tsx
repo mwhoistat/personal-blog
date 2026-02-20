@@ -4,8 +4,13 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
-import RichTextEditor from '@/components/editor/RichTextEditor'
-import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe, Loader2, CheckCircle2 } from 'lucide-react'
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+    ssr: false,
+    loading: () => <div className="h-[400px] flex items-center justify-center border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] animate-pulse bg-[var(--color-bg-secondary)] mt-8">Memuat Editor...</div>
+})
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
@@ -16,7 +21,8 @@ function WriteProjectContent() {
     const projectId = searchParams.get('id')
     const [loading, setLoading] = useState(!!projectId)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
-    const [saving, setSaving] = useState(false)
+    const [isSavingDraft, setIsSavingDraft] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
     const [status, setStatus] = useState<ArticleStatus>('draft')
 
     // Content state
@@ -32,7 +38,6 @@ function WriteProjectContent() {
     const supabase = createClient()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(projectId)
-    const isSavingRef = useRef(false)
 
     // Load Project if ID present
     useEffect(() => {
@@ -66,16 +71,14 @@ function WriteProjectContent() {
 
     // Auto-Save Logic
     const saveDraft = useCallback(async (manual = false) => {
-        if (!title || isSavingRef.current) return
+        if (!title) return
+        if (isPublishing) return
 
-        isSavingRef.current = true
-        setSaving(true)
-
+        setIsSavingDraft(true)
         try {
             const slug = slugify(title) || 'untitled-project'
             const payload = {
                 title: title || 'Untitled',
-                // Auto-update slug while in draft
                 slug: status === 'draft' ? slug : undefined,
                 description,
                 content,
@@ -84,31 +87,28 @@ function WriteProjectContent() {
                 github_url: githubUrl || null,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
                 featured,
-                status: status, // Keep current status
+                status: status,
                 updated_at: new Date().toISOString()
             }
 
-            let result
-            if (currentIdRef.current) {
-                result = await supabase
-                    .from('projects')
-                    .update(payload)
-                    .eq('id', currentIdRef.current)
-                    .select()
-                    .single()
-            } else {
-                result = await supabase
-                    .from('projects')
-                    .insert({ ...payload, slug })
-                    .select()
-                    .single()
+            const operation = async () => {
+                if (currentIdRef.current) {
+                    return await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
+                } else {
+                    return await supabase.from('projects').insert({ ...payload, slug }).select().single()
+                }
             }
+
+            const result = await Promise.race([
+                operation(),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
+            ])
 
             if (result.error) throw result.error
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                if (!projectId) {
+                if (!projectId && typeof window !== 'undefined') {
                     window.history.replaceState(null, '', `/admin/write/project?id=${result.data.id}`)
                 }
             }
@@ -116,13 +116,12 @@ function WriteProjectContent() {
             setLastSaved(new Date())
             if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
-            console.error(error)
-            // Don't toast on auto-save
+            console.error('Save draft error:', error)
+            if (manual) toast.error('Gagal menyimpan: ' + error.message)
         } finally {
-            setSaving(false)
-            isSavingRef.current = false
+            setIsSavingDraft(false)
         }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, projectId, supabase])
+    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, projectId, isPublishing, supabase])
 
     // Publish Workflow
     const handlePublish = async () => {
@@ -131,14 +130,9 @@ function WriteProjectContent() {
             return
         }
 
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-        if (isSavingRef.current) return
+        if (!confirm('Apakah Anda yakin ingin mempublish project ini?')) return
 
-        if (!confirm('Apakah saya yakin ingin mempublish project ini?')) return
-
-        isSavingRef.current = true
-        setSaving(true)
-
+        setIsPublishing(true)
         try {
             const payload = {
                 title,
@@ -155,33 +149,38 @@ function WriteProjectContent() {
                 updated_at: new Date().toISOString()
             }
 
-            let result
-            if (currentIdRef.current) {
-                result = await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
-            } else {
-                result = await supabase.from('projects').insert({ ...payload }).select().single()
+            const operation = async () => {
+                if (currentIdRef.current) {
+                    return await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
+                } else {
+                    return await supabase.from('projects').insert({ ...payload }).select().single()
+                }
             }
+
+            const result = await Promise.race([
+                operation(),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
+            ])
 
             if (result.error) throw result.error
 
             setStatus('published')
             toast.success('Project berhasil dipublish! 🚀')
 
-            setTimeout(() => {
-                router.push('/admin/dashboard')
-            }, 1000)
+            router.push('/admin/projects?status=published')
+            router.refresh()
 
         } catch (error: any) {
+            console.error('Publish error:', error)
             toast.error('Gagal publish: ' + error.message)
-            setSaving(false)
-            isSavingRef.current = false
+        } finally {
+            setIsPublishing(false)
         }
     }
 
     // Debounced Autosave
     useEffect(() => {
-        if (loading || status === 'published') return
-
+        if (loading || isPublishing) return
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = setTimeout(() => {
             saveDraft()
@@ -189,7 +188,7 @@ function WriteProjectContent() {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, saveDraft, loading, status])
+    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, saveDraft, loading, isPublishing])
 
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
@@ -207,7 +206,13 @@ function WriteProjectContent() {
                             {status === 'draft' ? 'Draft' : 'Published'}
                         </span>
                         <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
-                            {saving ? <><Cloud size={10} className="animate-pulse" /> Saving...</> : lastSaved ? <><Cloud size={10} /> Saved {lastSaved.toLocaleTimeString()}</> : 'Not saved'}
+                            {isSavingDraft ? (
+                                <><Loader2 size={10} className="animate-spin" /> Saving...</>
+                            ) : lastSaved ? (
+                                <><CheckCircle2 size={10} className="text-green-500" /> Saved {lastSaved.toLocaleTimeString()}</>
+                            ) : (
+                                'Not saved'
+                            )}
                         </span>
                     </div>
                 </div>
@@ -215,13 +220,14 @@ function WriteProjectContent() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handlePublish}
-                        disabled={saving}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
+                        disabled={isSavingDraft || isPublishing}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${status === 'published'
                             ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                        {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
+                        {isPublishing && <Loader2 size={14} className="animate-spin" />}
+                        {isPublishing ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
                     <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
                         <MoreHorizontal size={20} />

@@ -4,8 +4,13 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
-import RichTextEditor from '@/components/editor/RichTextEditor'
-import { ArrowLeft, Save, Clock, Cloud, CloudOff, Globe, MoreHorizontal } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { ArrowLeft, Save, Clock, Cloud, CloudOff, Globe, MoreHorizontal, Loader2, CheckCircle2 } from 'lucide-react'
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+    ssr: false,
+    loading: () => <div className="h-[400px] flex items-center justify-center border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] animate-pulse bg-[var(--color-bg-secondary)] mt-8">Memuat Editor...</div>
+})
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
@@ -16,7 +21,8 @@ function WriteArticleContent() {
     const articleId = searchParams.get('id')
     const [loading, setLoading] = useState(!!articleId)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
-    const [saving, setSaving] = useState(false)
+    const [isSavingDraft, setIsSavingDraft] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
     const [status, setStatus] = useState<ArticleStatus>('draft')
 
     // Content state
@@ -29,7 +35,6 @@ function WriteArticleContent() {
     const supabase = createClient()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(articleId)
-    const isSavingRef = useRef(false) // Guard to prevent concurrent saves
 
     // Load Draft if ID present
     useEffect(() => {
@@ -58,52 +63,45 @@ function WriteArticleContent() {
         loadArticle()
     }, [articleId, supabase])
 
-    // Auto-Save Logic
+    // Auto-Save Logic (Drafts only or silent updates)
     const saveDraft = useCallback(async (manual = false) => {
-        if ((!title && !content) || isSavingRef.current) return
+        if (!title && !content) return
+        if (isPublishing) return // Block autosave if we are currently publishing
 
-        isSavingRef.current = true
-        setSaving(true)
-
+        setIsSavingDraft(true)
         try {
             const slug = slugify(title) || 'untitled-draft'
             const payload = {
                 title: title || 'Untitled',
-                // Auto-update slug while in draft, otherwise keep existing
-                slug: status === 'draft' ? slug : undefined,
+                slug: status === 'draft' ? slug : undefined, // Auto-update slug while in draft
                 content,
                 cover_image: coverImage || null,
                 category: category || 'Uncategorized',
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-                status: status,
+                status: status, // Keep current status
                 updated_at: new Date().toISOString()
             }
 
-            let result
-            if (currentIdRef.current) {
-                result = await supabase
-                    .from('articles')
-                    .update(payload)
-                    .eq('id', currentIdRef.current)
-                    .select()
-                    .single()
-            } else {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) throw new Error('No user')
-
-                result = await supabase
-                    .from('articles')
-                    .insert({ ...payload, slug, author_id: user.id })
-                    .select()
-                    .single()
+            const operation = async () => {
+                if (currentIdRef.current) {
+                    return await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
+                } else {
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) throw new Error('No user')
+                    return await supabase.from('articles').insert({ ...payload, slug, author_id: user.id }).select().single()
+                }
             }
+
+            const result = await Promise.race([
+                operation(),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
+            ])
 
             if (result.error) throw result.error
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                // Only replace state if valid ID and new
-                if (!articleId && result.data.id) {
+                if (!articleId && typeof window !== 'undefined') {
                     window.history.replaceState(null, '', `/admin/write/article?id=${result.data.id}`)
                 }
             }
@@ -111,14 +109,13 @@ function WriteArticleContent() {
             setLastSaved(new Date())
             if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
-            console.error(error)
-            // Don't toast on auto-save error to avoid spam, unless manual
+            console.error('Save draft error:', error)
+            // Only toast error on manual save to avoid spamming user during autosave failures
             if (manual) toast.error('Gagal menyimpan: ' + error.message)
         } finally {
-            setSaving(false)
-            isSavingRef.current = false
+            setIsSavingDraft(false)
         }
-    }, [title, content, coverImage, tags, category, status, articleId, supabase])
+    }, [title, content, coverImage, tags, category, status, articleId, isPublishing, supabase])
 
     // Publish Workflow
     const handlePublish = async () => {
@@ -127,17 +124,9 @@ function WriteArticleContent() {
             return
         }
 
-        // Clear any pending autosave
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        if (!confirm('Apakah Anda yakin ingin mempublish artikel ini?')) return
 
-        // Prevent if already saving
-        if (isSavingRef.current) return
-
-        if (!confirm('Apakah saya yakin ingin mempublish artikel ini?')) return
-
-        isSavingRef.current = true
-        setSaving(true)
-
+        setIsPublishing(true)
         try {
             const payload = {
                 title,
@@ -150,47 +139,51 @@ function WriteArticleContent() {
                 updated_at: new Date().toISOString()
             }
 
-            // We assume ID exists because auto-save runs first usually
-            let result
-            if (currentIdRef.current) {
-                result = await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
-            } else {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) throw new Error('No user')
-                result = await supabase.from('articles').insert({ ...payload, slug: slugify(title), author_id: user.id }).select().single()
+            const operation = async () => {
+                if (currentIdRef.current) {
+                    return await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
+                } else {
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) throw new Error('No user')
+                    return await supabase.from('articles').insert({ ...payload, slug: slugify(title), author_id: user.id }).select().single()
+                }
             }
+
+            const result = await Promise.race([
+                operation(),
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
+            ])
 
             if (result.error) throw result.error
 
             setStatus('published')
             toast.success('Artikel berhasil dipublish! 🚀')
 
-            // Redirect to dashboard after short delay
-            setTimeout(() => {
-                router.push('/admin/dashboard')
-            }, 1000)
-
+            // Immediate redirect optimistically
+            router.push('/admin/articles')
+            router.refresh()
         } catch (error: any) {
+            console.error('Publish error:', error)
             toast.error('Gagal publish: ' + error.message)
-            setSaving(false)
-            isSavingRef.current = false
+        } finally {
+            setIsPublishing(false)
         }
     }
 
     // Debounced Autosave
     useEffect(() => {
-        if (loading || status === 'published') return // Don't autosave if published already? Or maybe yes but be careful.
+        if (loading || isPublishing) return
 
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 
         saveTimeoutRef.current = setTimeout(() => {
             saveDraft()
-        }, 3000)
+        }, 3000) // Auto-save after 3s of inactivity
 
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
-    }, [title, content, coverImage, tags, category, saveDraft, loading, status])
+    }, [title, content, coverImage, tags, category, saveDraft, loading, isPublishing])
 
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
@@ -208,7 +201,13 @@ function WriteArticleContent() {
                             {status === 'draft' ? 'Draft' : 'Published'}
                         </span>
                         <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
-                            {saving ? <><Cloud size={10} className="animate-pulse" /> Saving...</> : lastSaved ? <><Cloud size={10} /> Saved {lastSaved.toLocaleTimeString()}</> : 'Not saved'}
+                            {isSavingDraft ? (
+                                <><Loader2 size={10} className="animate-spin" /> Saving...</>
+                            ) : lastSaved ? (
+                                <><CheckCircle2 size={10} className="text-green-500" /> Saved {lastSaved.toLocaleTimeString()}</>
+                            ) : (
+                                'Not saved'
+                            )}
                         </span>
                     </div>
                 </div>
@@ -217,13 +216,14 @@ function WriteArticleContent() {
                     {/* Publish Action */}
                     <button
                         onClick={handlePublish}
-                        disabled={saving}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
+                        disabled={isSavingDraft || isPublishing}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${status === 'published'
                             ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                        {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
+                        {isPublishing && <Loader2 size={14} className="animate-spin" />}
+                        {isPublishing ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
 
                     <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">

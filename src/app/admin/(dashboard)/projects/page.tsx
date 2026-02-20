@@ -104,14 +104,15 @@ export default async function AdminProjectsPage({
                                 <th className="p-4 font-normal">Status</th>
                                 <th className="p-4 font-normal">Tags</th>
                                 <th className="p-4 font-normal">Featured</th>
-                                <th className="p-4 font-normal">Tanggal</th>
+                                <th className="p-4 font-normal">Last Edited</th>
+                                <th className="p-4 font-normal">Published</th>
                                 <th className="p-4 font-normal text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                             {projects?.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)] italic">
+                                    <td colSpan={7} className="p-8 text-center text-[var(--color-text-muted)] italic">
                                         Tidak ada proyek yang ditemukan.
                                     </td>
                                 </tr>
@@ -126,12 +127,12 @@ export default async function AdminProjectsPage({
                                         </td>
                                         <td className="p-4">
                                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${project.status === 'published'
-                                                    ? (project.published_at && new Date(project.published_at) > new Date()
-                                                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                                                        : 'bg-green-500/10 text-green-500 border border-green-500/20')
-                                                    : project.status === 'draft'
-                                                        ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
-                                                        : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
+                                                ? (project.published_at && new Date(project.published_at) > new Date()
+                                                    ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                                    : 'bg-green-500/10 text-green-500 border border-green-500/20')
+                                                : project.status === 'draft'
+                                                    ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+                                                    : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'
                                                 }`}>
                                                 {project.status === 'published' && project.published_at && new Date(project.published_at) > new Date()
                                                     ? 'Scheduled'
@@ -152,9 +153,14 @@ export default async function AdminProjectsPage({
                                             {project.featured ? <span className="text-yellow-400">⭐</span> : <span className="text-[var(--color-text-muted)]">-</span>}
                                         </td>
                                         <td className="p-4 text-[var(--color-text-secondary)] text-sm">
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1" title="Last Edited">
                                                 <Calendar size={14} />
-                                                {formatDate(project.created_at)}
+                                                {project.updated_at ? formatDate(project.updated_at) : formatDate(project.created_at)}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-[var(--color-text-secondary)] text-sm">
+                                            <div className="flex items-center gap-1" title="Published Date">
+                                                {project.published_at ? formatDate(project.published_at) : '-'}
                                             </div>
                                         </td>
                                         <td className="p-4 text-right">
