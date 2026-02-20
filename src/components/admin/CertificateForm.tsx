@@ -4,7 +4,6 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Upload, X, FileText, Loader2, Save, Image as ImageIcon, Calendar } from 'lucide-react'
-import { toast } from 'sonner'
 import type { Certificate, CertificateCategory, ArticleStatus } from '@/lib/types'
 
 interface CertificateFormProps {
@@ -38,7 +37,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             if (file.size > 5 * 1024 * 1024) {
-                toast.error('Image must be less than 5MB')
+                alert('Image must be less than 5MB')
                 return
             }
             setImageFile(file)
@@ -50,7 +49,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             if (file.type !== 'application/pdf') {
-                toast.error('File must be a PDF')
+                alert('File must be a PDF')
                 return
             }
             setPdfFile(file)
@@ -62,21 +61,14 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
         const filePath = `${path}/${fileName}`
 
-        const uploadOperation = async () => {
-            const { error: uploadError } = await supabase.storage
-                .from('certificates')
-                .upload(filePath, file)
-            if (uploadError) throw uploadError
+        const { error: uploadError } = await supabase.storage
+            .from('certificates')
+            .upload(filePath, file)
 
-            const { data } = supabase.storage.from('certificates').getPublicUrl(filePath)
-            return data.publicUrl
-        }
+        if (uploadError) throw uploadError
 
-        // Add 30s timeout for file uploads
-        return await Promise.race([
-            uploadOperation(),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Upload timeout (> 30s)')), 30000))
-        ])
+        const { data } = supabase.storage.from('certificates').getPublicUrl(filePath)
+        return data.publicUrl
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -98,9 +90,8 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
             }
 
             if (!imageUrl) {
-                toast.error('Image is required')
+                alert('Image is required')
                 setLoading(false)
-                setUploading(false)
                 return
             }
 
@@ -116,33 +107,29 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
                     : formData.published_at ? new Date(formData.published_at).toISOString() : null
             }
 
-            const operation = async () => {
-                if (initialData) {
-                    const { error } = await supabase
-                        .from('certificates')
-                        .update(payload)
-                        .eq('id', initialData.id)
-                    if (error) throw error
-                } else {
-                    const { error } = await supabase
-                        .from('certificates')
-                        .insert([payload])
-                    if (error) throw error
-                }
+            if (initialData) {
+                const { error } = await supabase
+                    .from('certificates')
+                    .update(payload)
+                    .eq('id', initialData.id)
+                if (error) throw error
+            } else {
+                const { error } = await supabase
+                    .from('certificates')
+                    .insert([payload])
+                if (error) throw error
             }
 
-            await Promise.race([
-                operation(),
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Save timeout (> 10s)')), 10000))
-            ])
+            // Revalidate cache
+            const { revalidatePathAction } = await import('@/app/actions/revalidate')
+            await revalidatePathAction('/', 'layout')
 
-            toast.success('Certificate successfully saved! 🚀')
+            alert('Certificate saved successfully!')
             router.push('/admin/certificates')
             router.refresh()
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error saving certificate:', error)
-            toast.error('Error saving certificate: ' + error.message)
-        } finally {
+            alert('Error saving certificate')
             setLoading(false)
             setUploading(false)
         }

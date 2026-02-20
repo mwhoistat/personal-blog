@@ -104,15 +104,14 @@ export default async function AdminProjectsPage({
                                 <th className="p-4 font-normal">Status</th>
                                 <th className="p-4 font-normal">Tags</th>
                                 <th className="p-4 font-normal">Featured</th>
-                                <th className="p-4 font-normal">Last Edited</th>
-                                <th className="p-4 font-normal">Published</th>
+                                <th className="p-4 font-normal">Tanggal</th>
                                 <th className="p-4 font-normal text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                             {projects?.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-[var(--color-text-muted)] italic">
+                                    <td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)] italic">
                                         Tidak ada proyek yang ditemukan.
                                     </td>
                                 </tr>
@@ -153,14 +152,9 @@ export default async function AdminProjectsPage({
                                             {project.featured ? <span className="text-yellow-400">⭐</span> : <span className="text-[var(--color-text-muted)]">-</span>}
                                         </td>
                                         <td className="p-4 text-[var(--color-text-secondary)] text-sm">
-                                            <div className="flex items-center gap-1" title="Last Edited">
+                                            <div className="flex items-center gap-1">
                                                 <Calendar size={14} />
-                                                {project.updated_at ? formatDate(project.updated_at) : formatDate(project.created_at)}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-[var(--color-text-secondary)] text-sm">
-                                            <div className="flex items-center gap-1" title="Published Date">
-                                                {project.published_at ? formatDate(project.published_at) : '-'}
+                                                {formatDate(project.created_at)}
                                             </div>
                                         </td>
                                         <td className="p-4 text-right">

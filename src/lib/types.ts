@@ -26,6 +26,10 @@ export interface Article {
     author_id: string
     created_at: string
     updated_at: string
+    meta_title?: string | null
+    meta_description?: string | null
+    word_count?: number
+    reading_time?: number
     author?: Profile
 }
 
@@ -45,6 +49,10 @@ export interface Project {
     view_count: number
     created_at: string
     updated_at: string
+    meta_title?: string | null
+    meta_description?: string | null
+    word_count?: number
+    reading_time?: number
     // GitHub Integration
     github_repo_id?: number
     is_github_imported?: boolean

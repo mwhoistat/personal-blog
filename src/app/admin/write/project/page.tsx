@@ -4,13 +4,8 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
-import dynamic from 'next/dynamic'
-import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe, Loader2, CheckCircle2 } from 'lucide-react'
-
-const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
-    ssr: false,
-    loading: () => <div className="h-[400px] flex items-center justify-center border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)] animate-pulse bg-[var(--color-bg-secondary)] mt-8">Memuat Editor...</div>
-})
+import RichTextEditor from '@/components/editor/RichTextEditor'
+import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
@@ -21,8 +16,7 @@ function WriteProjectContent() {
     const projectId = searchParams.get('id')
     const [loading, setLoading] = useState(!!projectId)
     const [lastSaved, setLastSaved] = useState<Date | null>(null)
-    const [isSavingDraft, setIsSavingDraft] = useState(false)
-    const [isPublishing, setIsPublishing] = useState(false)
+    const [saving, setSaving] = useState(false)
     const [status, setStatus] = useState<ArticleStatus>('draft')
 
     // Content state
@@ -34,6 +28,8 @@ function WriteProjectContent() {
     const [githubUrl, setGithubUrl] = useState('')
     const [tags, setTags] = useState('')
     const [featured, setFeatured] = useState(false)
+    const [metaTitle, setMetaTitle] = useState('')
+    const [metaDescription, setMetaDescription] = useState('')
 
     const supabase = createClient()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -59,6 +55,8 @@ function WriteProjectContent() {
                 setGithubUrl(data.github_url || '')
                 setTags(data.tags?.join(', ') || '')
                 setFeatured(data.featured || false)
+                setMetaTitle(data.meta_title || '')
+                setMetaDescription(data.meta_description || '')
                 setStatus((data.status as ArticleStatus) || 'draft')
                 currentIdRef.current = data.id
             } else if (error) {
@@ -72,13 +70,17 @@ function WriteProjectContent() {
     // Auto-Save Logic
     const saveDraft = useCallback(async (manual = false) => {
         if (!title) return
-        if (isPublishing) return
 
-        setIsSavingDraft(true)
+        setSaving(true)
         try {
             const slug = slugify(title) || 'untitled-project'
+            const textContent = content.replace(/<[^>]*>?/gm, '')
+            const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
+            const reading_time = Math.max(1, Math.ceil(word_count / 200))
+
             const payload = {
                 title: title || 'Untitled',
+                // Auto-update slug while in draft
                 slug: status === 'draft' ? slug : undefined,
                 description,
                 content,
@@ -87,28 +89,35 @@ function WriteProjectContent() {
                 github_url: githubUrl || null,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
                 featured,
-                status: status,
+                meta_title: metaTitle || null,
+                meta_description: metaDescription || null,
+                word_count,
+                reading_time,
+                status: status, // Keep current status
                 updated_at: new Date().toISOString()
             }
 
-            const operation = async () => {
-                if (currentIdRef.current) {
-                    return await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
-                } else {
-                    return await supabase.from('projects').insert({ ...payload, slug }).select().single()
-                }
+            let result
+            if (currentIdRef.current) {
+                result = await supabase
+                    .from('projects')
+                    .update(payload)
+                    .eq('id', currentIdRef.current)
+                    .select()
+                    .single()
+            } else {
+                result = await supabase
+                    .from('projects')
+                    .insert({ ...payload, slug })
+                    .select()
+                    .single()
             }
-
-            const result = await Promise.race([
-                operation(),
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
-            ])
 
             if (result.error) throw result.error
 
             if (result.data) {
                 currentIdRef.current = result.data.id
-                if (!projectId && typeof window !== 'undefined') {
+                if (!projectId) {
                     window.history.replaceState(null, '', `/admin/write/project?id=${result.data.id}`)
                 }
             }
@@ -116,12 +125,12 @@ function WriteProjectContent() {
             setLastSaved(new Date())
             if (manual) toast.success('Disimpan sebagai draft')
         } catch (error: any) {
-            console.error('Save draft error:', error)
-            if (manual) toast.error('Gagal menyimpan: ' + error.message)
+            console.error(error)
+            toast.error('Gagal menyimpan: ' + error.message)
         } finally {
-            setIsSavingDraft(false)
+            setSaving(false)
         }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, projectId, isPublishing, supabase])
+    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, metaTitle, metaDescription, status, projectId, supabase])
 
     // Publish Workflow
     const handlePublish = async () => {
@@ -130,10 +139,14 @@ function WriteProjectContent() {
             return
         }
 
-        if (!confirm('Apakah Anda yakin ingin mempublish project ini?')) return
+        if (!confirm('Apakah saya yakin ingin mempublish project ini?')) return
 
-        setIsPublishing(true)
+        setSaving(true)
         try {
+            const textContent = content.replace(/<[^>]*>?/gm, '')
+            const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
+            const reading_time = Math.max(1, Math.ceil(word_count / 200))
+
             const payload = {
                 title,
                 slug: currentIdRef.current ? undefined : slugify(title),
@@ -144,43 +157,44 @@ function WriteProjectContent() {
                 github_url: githubUrl || null,
                 tags: tags.split(',').map(t => t.trim()).filter(Boolean),
                 featured,
+                meta_title: metaTitle || null,
+                meta_description: metaDescription || null,
+                word_count,
+                reading_time,
                 status: 'published' as ArticleStatus,
                 published_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             }
 
-            const operation = async () => {
-                if (currentIdRef.current) {
-                    return await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
-                } else {
-                    return await supabase.from('projects').insert({ ...payload }).select().single()
-                }
+            let result
+            if (currentIdRef.current) {
+                result = await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
+            } else {
+                result = await supabase.from('projects').insert({ ...payload }).select().single()
             }
 
-            const result = await Promise.race([
-                operation(),
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timeout (> 10s)')), 10000))
-            ])
-
             if (result.error) throw result.error
+
+            // Revalidate cache
+            const { revalidatePathAction } = await import('@/app/actions/revalidate')
+            await revalidatePathAction('/', 'layout')
 
             setStatus('published')
             toast.success('Project berhasil dipublish! 🚀')
 
-            router.push('/admin/projects?status=published')
+            // Redirect to dashboard immediately and refresh
+            router.push('/admin/dashboard')
             router.refresh()
 
         } catch (error: any) {
-            console.error('Publish error:', error)
             toast.error('Gagal publish: ' + error.message)
-        } finally {
-            setIsPublishing(false)
+            setSaving(false)
         }
     }
 
     // Debounced Autosave
     useEffect(() => {
-        if (loading || isPublishing) return
+        if (loading) return
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = setTimeout(() => {
             saveDraft()
@@ -188,7 +202,7 @@ function WriteProjectContent() {
         return () => {
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, status, saveDraft, loading, isPublishing])
+    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, metaTitle, metaDescription, saveDraft, loading])
 
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
@@ -206,13 +220,7 @@ function WriteProjectContent() {
                             {status === 'draft' ? 'Draft' : 'Published'}
                         </span>
                         <span className="text-xs text-[var(--color-text-muted)] flex items-center gap-1">
-                            {isSavingDraft ? (
-                                <><Loader2 size={10} className="animate-spin" /> Saving...</>
-                            ) : lastSaved ? (
-                                <><CheckCircle2 size={10} className="text-green-500" /> Saved {lastSaved.toLocaleTimeString()}</>
-                            ) : (
-                                'Not saved'
-                            )}
+                            {saving ? <><Cloud size={10} className="animate-pulse" /> Saving...</> : lastSaved ? <><Cloud size={10} /> Saved {lastSaved.toLocaleTimeString()}</> : 'Not saved'}
                         </span>
                     </div>
                 </div>
@@ -220,14 +228,13 @@ function WriteProjectContent() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handlePublish}
-                        disabled={isSavingDraft || isPublishing}
-                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${status === 'published'
+                        disabled={saving}
+                        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
                             ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                        {isPublishing && <Loader2 size={14} className="animate-spin" />}
-                        {isPublishing ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
+                        {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
                     <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
                         <MoreHorizontal size={20} />
@@ -301,6 +308,24 @@ function WriteProjectContent() {
                                 className="accent-[var(--color-accent)]"
                             />
                             <label htmlFor="featured" className="text-sm text-[var(--color-text-secondary)] cursor-pointer">Featured Project</label>
+                        </div>
+                        {/* SEO Meta Fields */}
+                        <div className="pt-2 border-t border-[var(--color-border)] space-y-2">
+                            <span className="text-xs font-mono-tech text-[var(--color-accent)] opacity-80 uppercase">SEO Settings</span>
+                            <input
+                                value={metaTitle}
+                                onChange={(e) => setMetaTitle(e.target.value)}
+                                placeholder="Meta Title (Max 60 chars)"
+                                maxLength={60}
+                                className="w-full bg-transparent border-b border-[var(--color-border)] p-1 text-sm outline-none focus:border-[var(--color-accent)]"
+                            />
+                            <textarea
+                                value={metaDescription}
+                                onChange={(e) => setMetaDescription(e.target.value)}
+                                placeholder="Meta Description (Max 160 chars)"
+                                maxLength={160}
+                                className="w-full h-16 bg-transparent border-b border-[var(--color-border)] p-1 text-sm outline-none focus:border-[var(--color-accent)] resize-none"
+                            />
                         </div>
                     </div>
                 </div>

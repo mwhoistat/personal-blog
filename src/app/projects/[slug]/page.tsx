@@ -6,8 +6,39 @@ import Link from 'next/link'
 import Image from 'next/image'
 import ViewCounter from '@/components/ViewCounter'
 
+import { Metadata } from 'next'
+
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+    const supabase = createClient()
+    const { data: project } = await supabase
+        .from('projects')
+        .select('title, meta_title, meta_description, description, image_url')
+        .eq('slug', params.slug)
+        .eq('status', 'published')
+        .lte('published_at', new Date().toISOString())
+        .single()
+
+    if (!project) return { title: 'Not Found' }
+
+    return {
+        title: project.meta_title || project.title,
+        description: project.meta_description || project.description,
+        openGraph: {
+            title: project.meta_title || project.title,
+            description: project.meta_description || project.description,
+            images: project.image_url ? [{ url: project.image_url }] : [],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: project.meta_title || project.title,
+            description: project.meta_description || project.description,
+            images: project.image_url ? [project.image_url] : [],
+        }
+    }
+}
 
 export default async function ProjectPage({ params }: { params: { slug: string } }) {
     const supabase = createClient()
@@ -17,6 +48,7 @@ export default async function ProjectPage({ params }: { params: { slug: string }
         .select('*')
         .eq('slug', params.slug)
         .eq('status', 'published')
+        .lte('published_at', new Date().toISOString())
         .single()
 
     if (!project) {

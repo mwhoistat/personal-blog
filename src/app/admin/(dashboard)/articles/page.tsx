@@ -95,15 +95,14 @@ export default async function AdminArticlesPage({
                                 <th className="p-4 font-normal">Judul</th>
                                 <th className="p-4 font-normal">Status</th>
                                 <th className="p-4 font-normal">Views</th>
-                                <th className="p-4 font-normal">Last Edited</th>
-                                <th className="p-4 font-normal">Published</th>
+                                <th className="p-4 font-normal">Tanggal</th>
                                 <th className="p-4 font-normal text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]">
                             {articles?.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-8 text-center text-[var(--color-text-muted)] italic">
+                                    <td colSpan={5} className="p-8 text-center text-[var(--color-text-muted)] italic">
                                         Tidak ada artikel yang ditemukan.
                                     </td>
                                 </tr>
@@ -137,14 +136,9 @@ export default async function AdminArticlesPage({
                                             </div>
                                         </td>
                                         <td className="p-4 text-[var(--color-text-secondary)] text-sm">
-                                            <div className="flex items-center gap-1" title="Last Edited">
+                                            <div className="flex items-center gap-1">
                                                 <Calendar size={14} />
-                                                {article.updated_at ? new Date(article.updated_at).toLocaleDateString() : new Date(article.created_at).toLocaleDateString()}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-[var(--color-text-secondary)] text-sm">
-                                            <div className="flex items-center gap-1" title="Published Date">
-                                                {article.published_at ? new Date(article.published_at).toLocaleDateString() : '-'}
+                                                {new Date(article.created_at).toLocaleDateString()}
                                             </div>
                                         </td>
                                         <td className="p-4 text-right">
