@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import { ArrowLeft, ExternalLink, Github, Terminal } from 'lucide-react'
@@ -12,7 +12,7 @@ import { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-    const supabase = createClient()
+    const supabase = await createServerSupabaseClient()
     const { data: project } = await supabase
         .from('projects')
         .select('title, meta_title, meta_description, description, image_url')
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ProjectPage({ params }: { params: { slug: string } }) {
-    const supabase = createClient()
+    const supabase = await createServerSupabaseClient()
 
     const { data: project } = await supabase
         .from('projects')

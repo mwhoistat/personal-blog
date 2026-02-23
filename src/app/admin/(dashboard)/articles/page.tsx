@@ -6,6 +6,8 @@ import type { Article } from '@/lib/types'
 import { redirect } from 'next/navigation'
 import DeleteButton from '@/components/admin/DeleteButton'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminArticlesPage({
     searchParams,
 }: {

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Upload, X, FileText, Loader2, Save, Image as ImageIcon, Calendar } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Certificate, CertificateCategory, ArticleStatus } from '@/lib/types'
 
 interface CertificateFormProps {
@@ -37,7 +38,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             if (file.size > 5 * 1024 * 1024) {
-                alert('Image must be less than 5MB')
+                toast.error('Image must be less than 5MB')
                 return
             }
             setImageFile(file)
@@ -49,7 +50,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0]
             if (file.type !== 'application/pdf') {
-                alert('File must be a PDF')
+                toast.error('File must be a PDF')
                 return
             }
             setPdfFile(file)
@@ -73,6 +74,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (loading) return
         setLoading(true)
 
         try {
@@ -90,7 +92,7 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
             }
 
             if (!imageUrl) {
-                alert('Image is required')
+                toast.error('Image is required')
                 setLoading(false)
                 return
             }
@@ -124,12 +126,13 @@ export default function CertificateForm({ initialData }: CertificateFormProps) {
             const { revalidatePathAction } = await import('@/app/actions/revalidate')
             await revalidatePathAction('/', 'layout')
 
-            alert('Certificate saved successfully!')
+            toast.success('Certificate saved successfully!')
             router.push('/admin/certificates')
             router.refresh()
-        } catch (error) {
-            console.error('Error saving certificate:', error)
-            alert('Error saving certificate')
+        } catch (error: any) {
+            console.error('[Certificate Save Error]:', error)
+            toast.error('Error saving certificate: ' + (error.message || 'Unknown error'))
+        } finally {
             setLoading(false)
             setUploading(false)
         }

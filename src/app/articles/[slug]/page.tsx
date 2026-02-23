@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import MarkdownRenderer from '@/components/MarkdownRenderer'
 import { Calendar, Tag, ArrowLeft } from 'lucide-react'
@@ -12,7 +12,7 @@ import { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-    const supabase = createClient()
+    const supabase = await createServerSupabaseClient()
     const { data: article } = await supabase
         .from('articles')
         .select('title, meta_title, meta_description, excerpt, cover_image')
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function ArticlePage({ params }: { params: { slug: string } }) {
-    const supabase = createClient()
+    const supabase = await createServerSupabaseClient()
 
     // Server-side fetch
     const { data: article } = await supabase

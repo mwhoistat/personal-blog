@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { FileText, FolderKanban, Activity, ArrowRight, PenTool, Award, Plus } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminDashboardPage() {
     const cookieStore = await cookies()
     const supabase = createServerClient(
@@ -215,12 +217,12 @@ export default async function AdminDashboardPage() {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm ${item.status === 'published'
-                                                    ? (item.published_at && new Date(item.published_at) > new Date()
-                                                        ? 'bg-blue-500 text-white' // Scheduled
-                                                        : 'bg-green-500 text-white') // Published
-                                                    : item.status === 'draft'
-                                                        ? 'bg-yellow-500 text-black'
-                                                        : 'bg-gray-500 text-white' // Archived
+                                                ? (item.published_at && new Date(item.published_at) > new Date()
+                                                    ? 'bg-blue-500 text-white' // Scheduled
+                                                    : 'bg-green-500 text-white') // Published
+                                                : item.status === 'draft'
+                                                    ? 'bg-yellow-500 text-black'
+                                                    : 'bg-gray-500 text-white' // Archived
                                                 }`}>
                                                 {item.status === 'published' && item.published_at && new Date(item.published_at) > new Date()
                                                     ? 'Scheduled'

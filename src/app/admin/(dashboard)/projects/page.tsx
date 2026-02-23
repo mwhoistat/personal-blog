@@ -1,10 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
-import { Plus, Search, Edit3, Trash2, FolderKanban, Github, Filter, Eye, Calendar } from 'lucide-react'
+import { Plus, Search, Edit3, Trash2, FolderKanban, Github, Filter, Eye, Calendar, ArrowRight, Download, Globe } from 'lucide-react'
 import type { Project } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import DeleteButton from '@/components/admin/DeleteButton'
+
+export const dynamic = 'force-dynamic'
 
 export default async function AdminProjectsPage({
     searchParams,

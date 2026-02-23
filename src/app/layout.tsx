@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import { AuthProvider } from '@/components/AuthProvider'
 import PublicLayoutWrapper from '@/components/PublicLayoutWrapper'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 // Fonts configuration
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PublicLayoutWrapper>
               <main id="main-content" className="flex-1">
                 {children}
+                <Toaster richColors position="bottom-right" />
               </main>
             </PublicLayoutWrapper>
           </AuthProvider>

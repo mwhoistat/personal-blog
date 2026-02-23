@@ -9,6 +9,7 @@ import { ArrowLeft, Save, Clock, Cloud, CloudOff, Globe, MoreHorizontal } from '
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
+import { saveArticleAction } from '@/app/actions/article'
 
 function WriteArticleContent() {
     const router = useRouter()
@@ -29,7 +30,6 @@ function WriteArticleContent() {
     const [metaDescription, setMetaDescription] = useState('')
 
     const supabase = createClient()
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(articleId)
 
     // Load Draft if ID present
@@ -37,45 +37,58 @@ function WriteArticleContent() {
         if (!articleId) return
 
         const loadArticle = async () => {
-            const { data, error } = await supabase
-                .from('articles')
-                .select('*')
-                .eq('id', articleId)
-                .single()
+            try {
+                const { data, error } = await supabase
+                    .from('articles')
+                    .select('*')
+                    .eq('id', articleId)
+                    .single()
 
-            if (data) {
-                setTitle(data.title)
-                setContent(data.content)
-                setCoverImage(data.cover_image || '')
-                setTags(data.tags?.join(', ') || '')
-                setCategory(data.category)
-                setMetaTitle(data.meta_title || '')
-                setMetaDescription(data.meta_description || '')
-                setStatus(data.status as ArticleStatus)
-                currentIdRef.current = data.id
-            } else if (error) {
-                toast.error('Gagal memuat artikel')
+                if (error) throw error
+
+                if (data) {
+                    setTitle(data.title)
+                    setContent(data.content)
+                    setCoverImage(data.cover_image || '')
+                    setTags(data.tags?.join(', ') || '')
+                    setCategory(data.category)
+                    setMetaTitle(data.meta_title || '')
+                    setMetaDescription(data.meta_description || '')
+                    setStatus(data.status as ArticleStatus)
+                    currentIdRef.current = data.id
+                }
+            } catch (error: any) {
+                console.error('[Load Error]:', error)
+                toast.error('Gagal memuat artikel: ' + (error.message || 'Unknown error'))
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
         loadArticle()
     }, [articleId, supabase])
 
-    // Auto-Save Logic (Drafts only or silent updates)
-    const saveDraft = useCallback(async (manual = false) => {
-        if (!title && !content) return
+    // Unified Save Handler (Drafts & Published)
+    const handleSave = async (targetStatus: ArticleStatus) => {
+        if (!title && !content) {
+            toast.error('Judul dan konten tidak boleh kosong')
+            return
+        }
+
+        if (targetStatus === 'published') {
+            if (!confirm('Apakah saya yakin ingin mempublish artikel ini?')) return
+        }
+
+        if (saving) return // Prevent double click
 
         setSaving(true)
         try {
-            const slug = slugify(title) || 'untitled-draft'
+            // Prepare Payload dynamically
             const textContent = content.replace(/<[^>]*>?/gm, '')
             const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
             const reading_time = Math.max(1, Math.ceil(word_count / 200))
 
             const payload = {
                 title: title || 'Untitled',
-                // Auto-update slug while in draft, otherwise keep existing
-                slug: status === 'draft' ? slug : undefined,
                 content,
                 cover_image: coverImage || null,
                 category: category || 'Uncategorized',
@@ -84,124 +97,51 @@ function WriteArticleContent() {
                 meta_description: metaDescription || null,
                 word_count,
                 reading_time,
-                // Do NOT change status here, keep current.
-                status: status,
-                updated_at: new Date().toISOString()
+                status: targetStatus,
+                ...(targetStatus === 'published' && status !== 'published' ? { published_at: new Date().toISOString() } : {})
             }
 
-            let result
-            if (currentIdRef.current) {
-                result = await supabase
-                    .from('articles')
-                    .update(payload)
-                    .eq('id', currentIdRef.current)
-                    .select()
-                    .single()
-            } else {
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) throw new Error('No user')
+            const result = await saveArticleAction(currentIdRef.current, payload, true)
 
-                result = await supabase
-                    .from('articles')
-                    .insert({ ...payload, slug, author_id: user.id })
-                    .select()
-                    .single()
+            if (result.error) {
+                toast.error(result.error)
+                return // Exit early if error
             }
 
-            if (result.error) throw result.error
-
-            if (result.data) {
-                currentIdRef.current = result.data.id
-                if (!articleId) {
-                    window.history.replaceState(null, '', `/admin/write/article?id=${result.data.id}`)
+            // Success Handle
+            if (result.id) {
+                currentIdRef.current = result.id
+                if (!articleId && targetStatus === 'draft') {
+                    // Optimistically update URL without reloading
+                    window.history.replaceState(null, '', `/admin/write/article?id=${result.id}`)
                 }
             }
 
+            setStatus(targetStatus)
             setLastSaved(new Date())
-            if (manual) toast.success('Disimpan sebagai draft')
+
+            if (result.message) {
+                toast.success(result.message)
+            }
+
+            // Redirect on publish only
+            if (targetStatus === 'published') {
+                router.push('/admin/dashboard')
+                router.refresh()
+            }
+
         } catch (error: any) {
-            console.error(error)
-            toast.error('Gagal menyimpan: ' + error.message)
+            console.error('[Save Exception]:', error)
+            toast.error('Terjadi kesalahan tidak terduga saat menyimpan.')
         } finally {
-            setSaving(false)
-        }
-    }, [title, content, coverImage, tags, category, metaTitle, metaDescription, status, articleId, supabase])
-
-    // Publish Workflow
-    const handlePublish = async () => {
-        if (!title || !content) {
-            toast.error('Judul dan konten harus diisi')
-            return
-        }
-
-        if (!confirm('Apakah saya yakin ingin mempublish artikel ini?')) return
-
-        setSaving(true)
-        try {
-            const textContent = content.replace(/<[^>]*>?/gm, '')
-            const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
-            const reading_time = Math.max(1, Math.ceil(word_count / 200))
-
-            const payload = {
-                title,
-                content,
-                cover_image: coverImage || null,
-                category: category || 'Uncategorized',
-                tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-                meta_title: metaTitle || null,
-                meta_description: metaDescription || null,
-                word_count,
-                reading_time,
-                status: 'published' as ArticleStatus,
-                published_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }
-
-            // We assume ID exists because auto-save runs first usually, but let's handle new too
-            let result
-            if (currentIdRef.current) {
-                result = await supabase.from('articles').update(payload).eq('id', currentIdRef.current).select().single()
-            } else {
-                // Should technically auto-save first or handle insert here, but let's just insert
-                const { data: { user } } = await supabase.auth.getUser()
-                if (!user) throw new Error('No user')
-                result = await supabase.from('articles').insert({ ...payload, slug: slugify(title), author_id: user.id }).select().single()
-            }
-
-            if (result.error) throw result.error
-
-            // Revalidate cache
-            const { revalidatePathAction } = await import('@/app/actions/revalidate')
-            await revalidatePathAction('/', 'layout')
-
-            setStatus('published')
-            toast.success('Artikel berhasil dipublish! 🚀')
-
-            // Redirect to dashboard immediately and refresh
-            router.push('/admin/dashboard')
-            router.refresh()
-
-        } catch (error: any) {
-            toast.error('Gagal publish: ' + error.message)
+            // Ensure UI is unlocked regardless of success/fail
             setSaving(false)
         }
     }
 
-    // Debounced Autosave
-    useEffect(() => {
-        if (loading) return
 
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-
-        saveTimeoutRef.current = setTimeout(() => {
-            saveDraft()
-        }, 3000) // Auto-save after 3s of inactivity
-
-        return () => {
-            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-        }
-    }, [title, content, coverImage, tags, category, metaTitle, metaDescription, saveDraft, loading])
-
+    // Global Loading State
+    const isUIOccupied = saving || loading
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
 
@@ -224,10 +164,20 @@ function WriteArticleContent() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    {/* Draft Action (Manual Save) */}
+                    <button
+                        onClick={() => handleSave('draft')}
+                        disabled={isUIOccupied}
+                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+                        title="Save Draft"
+                    >
+                        <Save size={20} />
+                    </button>
+
                     {/* Publish Action */}
                     <button
-                        onClick={handlePublish}
-                        disabled={saving}
+                        onClick={() => handleSave('published')}
+                        disabled={isUIOccupied}
                         className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
                             ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
@@ -236,7 +186,7 @@ function WriteArticleContent() {
                         {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
 
-                    <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
+                    <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hidden md:block">
                         <MoreHorizontal size={20} />
                     </button>
                 </div>

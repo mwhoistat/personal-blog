@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { slugify } from '@/lib/utils'
 import RichTextEditor from '@/components/editor/RichTextEditor'
-import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe } from 'lucide-react'
+import { ArrowLeft, Cloud, MoreHorizontal, Github, Globe, Save } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { ArticleStatus } from '@/lib/types'
+import { saveProjectAction } from '@/app/actions/project'
 
 function WriteProjectContent() {
     const router = useRouter()
@@ -32,7 +33,6 @@ function WriteProjectContent() {
     const [metaDescription, setMetaDescription] = useState('')
 
     const supabase = createClient()
-    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const currentIdRef = useRef<string | null>(projectId)
 
     // Load Project if ID present
@@ -40,48 +40,62 @@ function WriteProjectContent() {
         if (!projectId) return
 
         const loadProject = async () => {
-            const { data, error } = await supabase
-                .from('projects')
-                .select('*')
-                .eq('id', projectId)
-                .single()
+            try {
+                const { data, error } = await supabase
+                    .from('projects')
+                    .select('*')
+                    .eq('id', projectId)
+                    .single()
 
-            if (data) {
-                setTitle(data.title)
-                setDescription(data.description || '')
-                setContent(data.content || '')
-                setImageUrl(data.image_url || '')
-                setDemoUrl(data.demo_url || '')
-                setGithubUrl(data.github_url || '')
-                setTags(data.tags?.join(', ') || '')
-                setFeatured(data.featured || false)
-                setMetaTitle(data.meta_title || '')
-                setMetaDescription(data.meta_description || '')
-                setStatus((data.status as ArticleStatus) || 'draft')
-                currentIdRef.current = data.id
-            } else if (error) {
-                toast.error('Gagal memuat project')
+                if (error) throw error
+
+                if (data) {
+                    setTitle(data.title)
+                    setDescription(data.description || '')
+                    setContent(data.content || '')
+                    setImageUrl(data.image_url || '')
+                    setDemoUrl(data.demo_url || '')
+                    setGithubUrl(data.github_url || '')
+                    setTags(data.tags?.join(', ') || '')
+                    setFeatured(data.featured || false)
+                    setMetaTitle(data.meta_title || '')
+                    setMetaDescription(data.meta_description || '')
+                    setStatus((data.status as ArticleStatus) || 'draft')
+                    currentIdRef.current = data.id
+                }
+            } catch (error: any) {
+                console.error('[Load Error]:', error)
+                toast.error('Gagal memuat project: ' + (error.message || 'Unknown error'))
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
         loadProject()
     }, [projectId, supabase])
 
-    // Auto-Save Logic
-    const saveDraft = useCallback(async (manual = false) => {
-        if (!title) return
+    // Unified Save Handler (Drafts & Published)
+    const handleSave = async (targetStatus: ArticleStatus) => {
+        if (!title && !description) {
+            toast.error('Judul dan deskripsi tidak boleh kosong')
+            return
+        }
+
+        if (targetStatus === 'published') {
+            if (!confirm('Apakah saya yakin ingin mempublish project ini?')) return
+        }
+
+        if (saving) return
 
         setSaving(true)
         try {
-            const slug = slugify(title) || 'untitled-project'
+            const slug = currentIdRef.current ? undefined : slugify(title) || 'untitled-project'
             const textContent = content.replace(/<[^>]*>?/gm, '')
             const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
             const reading_time = Math.max(1, Math.ceil(word_count / 200))
 
             const payload = {
                 title: title || 'Untitled',
-                // Auto-update slug while in draft
-                slug: status === 'draft' ? slug : undefined,
+                slug: targetStatus === 'draft' && !currentIdRef.current ? slug : undefined,
                 description,
                 content,
                 image_url: imageUrl || null,
@@ -93,117 +107,51 @@ function WriteProjectContent() {
                 meta_description: metaDescription || null,
                 word_count,
                 reading_time,
-                status: status, // Keep current status
-                updated_at: new Date().toISOString()
+                status: targetStatus,
+                ...(targetStatus === 'published' && status !== 'published' ? { published_at: new Date().toISOString() } : {})
             }
 
-            let result
-            if (currentIdRef.current) {
-                result = await supabase
-                    .from('projects')
-                    .update(payload)
-                    .eq('id', currentIdRef.current)
-                    .select()
-                    .single()
-            } else {
-                result = await supabase
-                    .from('projects')
-                    .insert({ ...payload, slug })
-                    .select()
-                    .single()
+            const result = await saveProjectAction(currentIdRef.current, payload, true)
+
+            if (result.error) {
+                toast.error(result.error)
+                return // Fast exit on error
             }
 
-            if (result.error) throw result.error
-
-            if (result.data) {
-                currentIdRef.current = result.data.id
-                if (!projectId) {
-                    window.history.replaceState(null, '', `/admin/write/project?id=${result.data.id}`)
+            // Success Handle
+            if (result.id) {
+                currentIdRef.current = result.id
+                if (!projectId && targetStatus === 'draft') {
+                    // Optimistically update URL without reloading
+                    window.history.replaceState(null, '', `/admin/write/project?id=${result.id}`)
                 }
             }
 
+            setStatus(targetStatus)
             setLastSaved(new Date())
-            if (manual) toast.success('Disimpan sebagai draft')
+
+            if (result.message) {
+                toast.success(result.message)
+            }
+
+            // Redirect on publish only
+            if (targetStatus === 'published') {
+                router.push('/admin/dashboard')
+                router.refresh()
+            }
+
         } catch (error: any) {
-            console.error(error)
-            toast.error('Gagal menyimpan: ' + error.message)
+            console.error('[Save Exception]:', error)
+            toast.error('Terjadi kesalahan tidak terduga saat menyimpan.')
         } finally {
-            setSaving(false)
-        }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, metaTitle, metaDescription, status, projectId, supabase])
-
-    // Publish Workflow
-    const handlePublish = async () => {
-        if (!title || !description) {
-            toast.error('Judul dan deskripsi harus diisi')
-            return
-        }
-
-        if (!confirm('Apakah saya yakin ingin mempublish project ini?')) return
-
-        setSaving(true)
-        try {
-            const textContent = content.replace(/<[^>]*>?/gm, '')
-            const word_count = textContent.split(/\s+/).filter(w => w.length > 0).length
-            const reading_time = Math.max(1, Math.ceil(word_count / 200))
-
-            const payload = {
-                title,
-                slug: currentIdRef.current ? undefined : slugify(title),
-                description,
-                content,
-                image_url: imageUrl || null,
-                demo_url: demoUrl || null,
-                github_url: githubUrl || null,
-                tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-                featured,
-                meta_title: metaTitle || null,
-                meta_description: metaDescription || null,
-                word_count,
-                reading_time,
-                status: 'published' as ArticleStatus,
-                published_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            }
-
-            let result
-            if (currentIdRef.current) {
-                result = await supabase.from('projects').update(payload).eq('id', currentIdRef.current).select().single()
-            } else {
-                result = await supabase.from('projects').insert({ ...payload }).select().single()
-            }
-
-            if (result.error) throw result.error
-
-            // Revalidate cache
-            const { revalidatePathAction } = await import('@/app/actions/revalidate')
-            await revalidatePathAction('/', 'layout')
-
-            setStatus('published')
-            toast.success('Project berhasil dipublish! 🚀')
-
-            // Redirect to dashboard immediately and refresh
-            router.push('/admin/dashboard')
-            router.refresh()
-
-        } catch (error: any) {
-            toast.error('Gagal publish: ' + error.message)
+            // Ensure UI is unlocked regardless of success/fail
             setSaving(false)
         }
     }
 
-    // Debounced Autosave
-    useEffect(() => {
-        if (loading) return
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-        saveTimeoutRef.current = setTimeout(() => {
-            saveDraft()
-        }, 3000)
-        return () => {
-            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-        }
-    }, [title, description, content, imageUrl, demoUrl, githubUrl, tags, featured, metaTitle, metaDescription, saveDraft, loading])
 
+    // Global Loading State
+    const isUIOccupied = saving || loading
 
     if (loading) return <div className="flex items-center justify-center h-screen bg-[var(--color-bg)]">Loading...</div>
 
@@ -227,8 +175,16 @@ function WriteProjectContent() {
 
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={handlePublish}
-                        disabled={saving}
+                        onClick={() => handleSave('draft')}
+                        disabled={isUIOccupied}
+                        className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors disabled:opacity-50"
+                        title="Save Draft"
+                    >
+                        <Save size={20} />
+                    </button>
+                    <button
+                        onClick={() => handleSave('published')}
+                        disabled={isUIOccupied}
                         className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${status === 'published'
                             ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]'
                             : 'bg-[var(--color-accent)] text-[var(--color-bg)] hover:bg-[var(--color-accent-light)]'
@@ -236,7 +192,7 @@ function WriteProjectContent() {
                     >
                         {saving ? 'Processing...' : (status === 'published' ? 'Update' : 'Publish')}
                     </button>
-                    <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]">
+                    <button className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] hidden md:block">
                         <MoreHorizontal size={20} />
                     </button>
                 </div>

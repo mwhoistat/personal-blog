@@ -1,9 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
-import { Plus, Search, Filter, Award, Calendar, ExternalLink, Edit3, Trash2 } from 'lucide-react'
+import { Plus, Search, Filter, Award, Calendar, ExternalLink, Edit3, Trash2, Image as ImageIcon } from 'lucide-react'
 import type { Certificate } from '@/lib/types'
 import DeleteButton from '@/components/admin/DeleteButton'
+
+export const dynamic = 'force-dynamic'
 
 export default async function AdminCertificatesPage({
     searchParams,
@@ -34,7 +36,7 @@ export default async function AdminCertificatesPage({
 
     if (query) {
         // Certificates might not have 'description' indexed or present in all, focusing on title/issuer
-        dbQuery = dbQuery.or(`title.ilike.%${query}%,issuer.ilike.%${query}%`)
+        dbQuery = dbQuery.or(`title.ilike.% ${query}%, issuer.ilike.% ${query}% `)
     }
 
     if (statusFilter !== 'all') {
@@ -87,8 +89,8 @@ export default async function AdminCertificatesPage({
                         {['all', 'published', 'draft', 'archived'].map((s) => (
                             <Link
                                 key={s}
-                                href={`/admin/certificates?status=${s}&category=${categoryFilter}&q=${query}`}
-                                className={`px-3 py-1 text-xs rounded-md capitalize transition-colors ${statusFilter === s ? 'bg-[var(--color-accent)] text-[var(--color-bg)] font-bold' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'}`}
+                                href={`/ admin / certificates ? status = ${s}& category=${categoryFilter}& q=${query} `}
+                                className={`px - 3 py - 1 text - xs rounded - md capitalize transition - colors ${statusFilter === s ? 'bg-[var(--color-accent)] text-[var(--color-bg)] font-bold' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'} `}
                             >
                                 {s}
                             </Link>
@@ -101,8 +103,8 @@ export default async function AdminCertificatesPage({
                             {['all', 'course', 'award'].map((c) => (
                                 <Link
                                     key={c}
-                                    href={`/admin/certificates?status=${statusFilter}&category=${c}&q=${query}`}
-                                    className={`px-3 py-1 text-xs capitalize transition-colors border-r border-[var(--color-border)] last:border-0 ${categoryFilter === c ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text)] font-semibold' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                                    href={`/ admin / certificates ? status = ${statusFilter}& category=${c}& q=${query} `}
+                                    className={`px - 3 py - 1 text - xs capitalize transition - colors border - r border - [var(--color - border)]last: border - 0 ${categoryFilter === c ? 'bg-[var(--color-bg-tertiary)] text-[var(--color-text)] font-semibold' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'} `}
                                 >
                                     {c}
                                 </Link>
@@ -130,14 +132,14 @@ export default async function AdminCertificatesPage({
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
                                 <div className="absolute top-2 right-2 flex gap-1">
-                                    <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase shadow-sm ${cert.status === 'published'
+                                    <span className={`px - 2 py - 1 rounded text - [10px] font - bold uppercase shadow - sm ${cert.status === 'published'
                                             ? (cert.published_at && new Date(cert.published_at) > new Date()
                                                 ? 'bg-blue-500 text-white' // Scheduled
                                                 : 'bg-green-500 text-white') // Published
                                             : cert.status === 'draft'
                                                 ? 'bg-yellow-500 text-black'
                                                 : 'bg-gray-500 text-white'
-                                        }`}>
+                                        } `}>
                                         {cert.status === 'published' && cert.published_at && new Date(cert.published_at) > new Date()
                                             ? 'Scheduled'
                                             : cert.status || 'Draft'}
@@ -147,10 +149,10 @@ export default async function AdminCertificatesPage({
 
                             <div className="p-4 flex-1 flex flex-col">
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className={`text-[10px] font-mono-tech uppercase tracking-wider px-2 py-0.5 rounded border ${cert.category === 'award' ? 'border-yellow-500/30 text-yellow-500 bg-yellow-500/5' :
-                                        cert.category === 'competition' ? 'border-red-500/30 text-red-500 bg-red-500/5' :
-                                            'border-[var(--color-cyan)]/30 text-[var(--color-cyan)] bg-[var(--color-cyan)]/5'
-                                        }`}>
+                                    <span className={`text - [10px] font - mono - tech uppercase tracking - wider px - 2 py - 0.5 rounded border ${cert.category === 'award' ? 'border-yellow-500/30 text-yellow-500 bg-yellow-500/5' :
+                                            cert.category === 'competition' ? 'border-red-500/30 text-red-500 bg-red-500/5' :
+                                                'border-[var(--color-cyan)]/30 text-[var(--color-cyan)] bg-[var(--color-cyan)]/5'
+                                        } `}>
                                         {cert.category}
                                     </span>
                                 </div>
@@ -166,7 +168,7 @@ export default async function AdminCertificatesPage({
                                         {new Date(cert.issue_date).toLocaleDateString()}
                                     </span>
                                     <div className="flex gap-2">
-                                        <Link href={`/admin/certificates/${cert.id}`} className="p-1 hover:text-[var(--color-accent)]">
+                                        <Link href={`/ admin / certificates / ${cert.id} `} className="p-1 hover:text-[var(--color-accent)]">
                                             <Edit3 size={14} />
                                         </Link>
                                         <DeleteButton table="certificates" id={cert.id} title={cert.title} />
