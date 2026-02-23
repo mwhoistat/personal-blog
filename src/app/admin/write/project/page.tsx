@@ -136,7 +136,7 @@ function WriteProjectContent() {
 
             // Redirect on publish only
             if (targetStatus === 'published') {
-                router.push('/admin/dashboard')
+                router.push('/admin')
                 router.refresh()
             }
 
