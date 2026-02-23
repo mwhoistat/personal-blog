@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
+import { sanitizeHtml } from '@/lib/html-utils'
 
 // Custom renderer for links to ensure security and styling
 const LinkRenderer = ({ href, children, ...props }: any) => {
@@ -38,6 +39,9 @@ const LinkRenderer = ({ href, children, ...props }: any) => {
 }
 
 export default function MarkdownRenderer({ content }: { content: string }) {
+    // Crucial: Sanitize the raw HTML output from Tiptap/Database BEFORE parsing to stop XSS
+    const safeContent = sanitizeHtml(content)
+
     return (
         <div className="prose prose-invert max-w-none prose-headings:font-mono-tech prose-p:text-[var(--color-text-secondary)] prose-strong:text-[var(--color-text)] prose-code:text-[var(--color-accent)]">
             <ReactMarkdown
@@ -60,7 +64,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
                     }
                 }}
             >
-                {content}
+                {safeContent}
             </ReactMarkdown>
         </div>
     )

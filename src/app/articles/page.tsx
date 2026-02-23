@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import { generateExcerpt } from '@/lib/html-utils'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import CyberCard from '@/components/CyberCard'
@@ -66,7 +67,7 @@ function ArticlesContent() {
                         <CyberCard
                             key={article.id}
                             title={article.title}
-                            excerpt={article.content.substring(0, 100) + '...'}
+                            excerpt={generateExcerpt(article.content, 120)}
                             slug={article.slug}
                             type="article"
                             date={article.created_at}

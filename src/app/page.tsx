@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { generateExcerpt } from '@/lib/html-utils'
 import Link from 'next/link'
 import { Terminal, Shield, Cpu, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -144,7 +145,7 @@ export default function Home() {
               <CyberCard
                 key={article.id}
                 title={article.title}
-                excerpt={article.content.substring(0, 100) + '...'} // Simple extraction, real app should store excerpt
+                excerpt={generateExcerpt(article.content, 100)}
                 slug={article.slug}
                 type="article"
                 date={article.created_at}
