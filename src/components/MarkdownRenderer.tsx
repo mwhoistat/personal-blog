@@ -2,6 +2,7 @@
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 
@@ -41,6 +42,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
         <div className="prose prose-invert max-w-none prose-headings:font-mono-tech prose-p:text-[var(--color-text-secondary)] prose-strong:text-[var(--color-text)] prose-code:text-[var(--color-accent)]">
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                     a: LinkRenderer,
                     code: ({ node, className, children, ...props }) => {

@@ -11,12 +11,13 @@ import { Metadata } from 'next'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params
     const supabase = await createServerSupabaseClient()
     const { data: project } = await supabase
         .from('projects')
         .select('title, meta_title, meta_description, description, image_url')
-        .eq('slug', params.slug)
+        .eq('slug', slug)
         .eq('status', 'published')
         .lte('published_at', new Date().toISOString())
         .single()
@@ -40,13 +41,14 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     }
 }
 
-export default async function ProjectPage({ params }: { params: { slug: string } }) {
+export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params
     const supabase = await createServerSupabaseClient()
 
     const { data: project } = await supabase
         .from('projects')
         .select('*')
-        .eq('slug', params.slug)
+        .eq('slug', slug)
         .eq('status', 'published')
         .lte('published_at', new Date().toISOString())
         .single()
